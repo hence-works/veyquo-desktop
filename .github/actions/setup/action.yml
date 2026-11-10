@@ -1,0 +1,33 @@
+name: setup
+description: Install just, Node and the locked Yarn workspaces. Fails if yarn.lock would change.
+
+runs:
+  using: composite
+  steps:
+    - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      with:
+        just-version: 1.58.0
+
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 24
+        package-manager-cache: false
+
+    # Yarn 4 comes from the packageManager field through Corepack.
+    - id: yarn
+      shell: bash
+      env:
+        COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+      run: |
+        corepack enable
+        echo "cache-folder=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+    # Holds registry tarballs only: the private packages are workspaces, not cache entries.
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.yarn.outputs.cache-folder }}
+        key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+        restore-keys: yarn-${{ runner.os }}-
+
+    - shell: bash
+      run: just install-ts

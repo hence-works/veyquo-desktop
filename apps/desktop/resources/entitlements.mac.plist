@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Hardened runtime entitlements for Electron (V8's JIT). Nothing else: the app needs no
+     camera, microphone, location or library-validation exceptions. Chrome is a separate,
+     Google-signed program the app starts. -->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <!-- TODO(desktop, first signed macOS smoke run): drop this one if the hardened-runtime
+         build still starts and passes the smoke check without it (recent Electron needs only
+         allow-jit). Kept until then because it cannot be checked off a Mac. Unsigned CI
+         builds are ad-hoc signed without entitlements, so they do not test it. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+  </dict>
+</plist>

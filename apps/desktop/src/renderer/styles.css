@@ -1,0 +1,317 @@
+@import '@veyquo/ui/tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground-body);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 20px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-block: 4px;
+}
+
+.brand img {
+  display: block;
+  width: 128px;
+  height: auto;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: var(--secondary);
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--status-neutral);
+}
+
+.status[data-status='online'] .dot {
+  background: var(--status-success);
+}
+.status[data-status='working'] .dot {
+  background: var(--status-agent);
+}
+.status[data-status='pairing'] .dot,
+.status[data-status='paused'] .dot {
+  background: var(--status-warning);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h2,
+h3 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.row dt {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.row dd {
+  margin: 0;
+  color: var(--foreground);
+  font-weight: 500;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--foreground);
+  text-align: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--primary-subtle);
+}
+
+.notice {
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--status-info-subtle);
+  color: var(--status-info-foreground);
+}
+.notice[data-tone='warning'] {
+  background: var(--status-warning-subtle);
+  color: var(--status-warning-foreground);
+}
+.notice[data-tone='error'] {
+  background: var(--status-error-subtle);
+  color: var(--status-error-foreground);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  font-weight: 500;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background-color 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button:hover {
+  background: var(--secondary);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.browser-choices {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.browser-choice {
+  display: grid;
+  gap: 6px;
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.browser-choice select {
+  min-height: 40px;
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+}
+
+button.primary {
+  min-height: 40px;
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+button.primary:hover {
+  background: var(--primary-hover);
+}
+button.primary:active {
+  background: var(--primary-active);
+}
+
+button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+button.destructive {
+  border-color: transparent;
+  background: transparent;
+  color: var(--status-error-foreground);
+  padding: 8px 12px;
+}
+
+label.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--foreground);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.introduction {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0;
+}
+h1 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.introduction p {
+  color: var(--muted-foreground);
+}
+.card.agent {
+  border-left: 3px solid var(--status-agent);
+  padding-left: 16px;
+}
+button:active {
+  background: var(--secondary);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+button.ghost:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+button.destructive:hover {
+  background: var(--status-error-subtle);
+}
+@media (max-width: 380px) {
+  main {
+    padding: 20px 16px;
+  }
+  .actions button {
+    flex: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}

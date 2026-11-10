@@ -1,0 +1,19 @@
+name: build-desktop
+description: >-
+  Package the desktop app for this OS, check its fuses and smoke-test it. Runs after the private
+  packages are in packages/. The caller sets VEYQUO_BUILD_API_URL and VEYQUO_BUILD_WEB_URL.
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup
+
+    # Linux: the smoke check needs a display and the AppImage needs FUSE 2.
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libfuse2t64
+
+    - shell: bash
+      run: just desktop-package

@@ -1,0 +1,108 @@
+name: desktop
+
+# Checks and per-OS packaging. Nothing is uploaded: artifacts on a public repository can be
+# downloaded by anyone signed in to GitHub, and the packages contain private code.
+#
+# SECURITY. PRIVATE_PACKAGES_DEPLOY_KEY reads the private repository. It exists only as an
+# environment secret and is read by one `actions/checkout` step per job, before any script from
+# this repository runs. Never use pull_request_target here, never move the key to a repository
+# secret, never pass it to another step, and never upload or cache packages/.
+#
+# - private-packages: limited to main and v* tags.
+# - private-packages-pr: any ref, but a required reviewer must approve each run. Read any change
+#   under .github/ and scripts/ before approving.
+# - Pull requests from forks skip every job.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks (format, lint, types, unit, integration)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: ${{ github.event_name == 'pull_request' && 'private-packages-pr' || 'private-packages' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: pin
+        shell: bash
+        run: echo "ref=$(tr -d '[:space:]' < private-packages.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hence-works/veyquo
+          ref: ${{ steps.pin.outputs.ref }}
+          ssh-key: ${{ secrets.PRIVATE_PACKAGES_DEPLOY_KEY }}
+          persist-credentials: false
+          path: .private-src
+          fetch-depth: 1
+          sparse-checkout: |
+            packages/device-protocol
+            packages/eslint-config
+            packages/local-executor
+            packages/typescript-config
+            packages/ui
+      - shell: bash
+        run: |
+          bash scripts/fetch-private-packages.sh --from .private-src
+          rm -rf .private-src
+      - uses: ./.github/actions/setup
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: just fmt-check
+      - run: just lint
+      - run: just typecheck
+      - run: just test-unit
+      - run: yarn workspace @veyquo/desktop electron:install
+      - run: just test-integration
+
+  package:
+    name: package (${{ matrix.os }})
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    environment: ${{ github.event_name == 'pull_request' && 'private-packages-pr' || 'private-packages' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-24.04]
+    env:
+      # Installers must carry their Veyquo URLs; these reserved hosts are never reached.
+      VEYQUO_BUILD_API_URL: https://api.smoke.veyquo.example
+      VEYQUO_BUILD_WEB_URL: https://smoke.veyquo.example
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: pin
+        shell: bash
+        run: echo "ref=$(tr -d '[:space:]' < private-packages.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hence-works/veyquo
+          ref: ${{ steps.pin.outputs.ref }}
+          ssh-key: ${{ secrets.PRIVATE_PACKAGES_DEPLOY_KEY }}
+          persist-credentials: false
+          path: .private-src
+          fetch-depth: 1
+          sparse-checkout: |
+            packages/device-protocol
+            packages/eslint-config
+            packages/local-executor
+            packages/typescript-config
+            packages/ui
+      - shell: bash
+        run: |
+          bash scripts/fetch-private-packages.sh --from .private-src
+          rm -rf .private-src
+      - uses: ./.github/actions/build-desktop

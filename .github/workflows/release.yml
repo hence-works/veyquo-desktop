@@ -1,0 +1,103 @@
+name: release
+
+# A version tag builds every OS and attaches the installers to a DRAFT release, visible only to
+# people with write access until someone publishes it. Each leg uploads straight to the release:
+# passing installers between jobs as workflow artifacts would make them public.
+#
+# See the SECURITY note in desktop.yml. The private-packages environment admits only main and
+# v* tags, and a tag ruleset limits who can create v* tags.
+#
+# A tag must be v<version> or v<version>-<suffix>, where <version> is apps/desktop/package.json's.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  draft:
+    name: create draft release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the tag matches the app version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(jq -r .version apps/desktop/package.json)"
+          case "$TAG" in
+            "v$version" | "v$version"-*) ;;
+            *) echo "tag $TAG does not match app version $version" >&2; exit 1 ;;
+          esac
+      - name: Create the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=()
+          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Veyquo Desktop $TAG" --generate-notes "${flags[@]}"
+
+  package:
+    name: package (${{ matrix.os }})
+    needs: draft
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    environment: private-packages
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-24.04]
+    env:
+      VEYQUO_BUILD_API_URL: ${{ vars.VEYQUO_BUILD_API_URL }}
+      VEYQUO_BUILD_WEB_URL: ${{ vars.VEYQUO_BUILD_WEB_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: pin
+        shell: bash
+        run: echo "ref=$(tr -d '[:space:]' < private-packages.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hence-works/veyquo
+          ref: ${{ steps.pin.outputs.ref }}
+          ssh-key: ${{ secrets.PRIVATE_PACKAGES_DEPLOY_KEY }}
+          persist-credentials: false
+          path: .private-src
+          fetch-depth: 1
+          sparse-checkout: |
+            packages/device-protocol
+            packages/eslint-config
+            packages/local-executor
+            packages/typescript-config
+            packages/ui
+      - shell: bash
+        run: |
+          bash scripts/fetch-private-packages.sh --from .private-src
+          rm -rf .private-src
+      - uses: ./.github/actions/build-desktop
+      - name: Attach the installers to the draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/*.exe apps/desktop/release/*.AppImage)
+          if [ "${#files[@]}" -eq 0 ]; then echo "no installers were built" >&2; exit 1; fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"

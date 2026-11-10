@@ -1,0 +1,46 @@
+{
+  "name": "@veyquo/desktop",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Veyquo's desktop app: pairs this computer and runs the job agent in the person's own Chrome.",
+  "author": "Hence Works",
+  "type": "module",
+  "main": "build/main.cjs",
+  "scripts": {
+    "dev": "node scripts/ensure-electron.ts && node scripts/build.ts && electron .",
+    "build": "node scripts/build.ts",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "node scripts/ensure-electron.ts && node scripts/build.ts && vitest run --config vitest.integration.config.ts",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json",
+    "dist": "node scripts/build.ts && node scripts/dist.ts",
+    "dist:dir": "node scripts/build.ts && node scripts/dist.ts --dir",
+    "electron:install": "node scripts/ensure-electron.ts",
+    "verify:package": "node scripts/verify-package.ts",
+    "smoke:package": "node scripts/smoke-package.ts"
+  },
+  "dependencies": {
+    "@veyquo/device-protocol": "workspace:*",
+    "@veyquo/local-executor": "workspace:*",
+    "@veyquo/ui": "workspace:*",
+    "electron-updater": "6.8.9",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electron/fuses": "1.8.0",
+    "@types/node": "^24",
+    "@types/ws": "^8.18.2",
+    "@veyquo/eslint-config": "workspace:*",
+    "@veyquo/typescript-config": "workspace:*",
+    "electron": "^44.9.3",
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "playwright": "1.63.0",
+    "postject": "^1.0.0-alpha.6",
+    "typescript": "^6",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.3"
+  }
+}

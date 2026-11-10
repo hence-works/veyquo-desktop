@@ -1,0 +1,4 @@
+# esbuild output (yarn build) and electron-builder output (yarn dist)
+build/
+build-host/
+release/

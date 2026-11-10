@@ -1,0 +1,61 @@
+# Packaging for the Veyquo desktop app (desktop plan §8, §9). Run through scripts/dist.ts,
+# which turns signing off when no signing identity is in the environment and sets the
+# update feed from VEYQUO_UPDATE_URL (no feed: no publish configuration at all).
+appId: works.hence.veyquo.desktop
+productName: Veyquo
+copyright: Copyright © Hence Works
+directories:
+  output: release
+  buildResources: resources
+# Everything the app runs is bundled into build/ by scripts/build.ts.
+files:
+  - build/**/*
+  - package.json
+  - '!node_modules{,/**/*}'
+asar: true
+# Hardening the Electron binary itself (checked by scripts/verify-package.ts): it cannot be
+# run as Node, takes no NODE_OPTIONS or --inspect, loads only its own integrity-checked asar,
+# and encrypts cookies at rest.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.productivity
+  icon: resources/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.png
+  # The native-messaging host Chrome starts on Windows (scripts/host-executable.ts): Node, not
+  # Electron, which writes a stray line to stdout there. Signed with the app, like every .exe.
+  extraResources:
+    - from: build-host/veyquo-native-host.exe
+      to: veyquo-native-host.exe
+nsis:
+  oneClick: true
+  perMachine: false
+  deleteAppDataOnUninstall: true
+linux:
+  # Development and CI only (global constraints).
+  target:
+    - target: AppImage
+  executableName: veyquo
+  category: Utility
+  icon: resources/icon.png
+publish:
+  provider: generic
+  url: ${env.VEYQUO_UPDATE_URL}
