@@ -16,6 +16,10 @@ fetch *flags:
 install-ts:
     yarn install --immutable
 
+# Playwright's Chromium, which the renderer integration tests use. Pass `--with-deps` on CI.
+browsers *flags:
+    yarn workspace @veyquo/desktop exec playwright install {{ flags }} chromium
+
 # Format check.
 fmt-check:
     yarn prettier --check .
