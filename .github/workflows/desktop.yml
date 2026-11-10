@@ -63,6 +63,7 @@ jobs:
       - run: just lint
       - run: just typecheck
       - run: just test-unit
+      - run: just browsers --with-deps
       - run: yarn workspace @veyquo/desktop electron:install
       - run: just test-integration
 
