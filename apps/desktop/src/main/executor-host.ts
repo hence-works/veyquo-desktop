@@ -55,7 +55,13 @@ export interface RunningChrome {
 
 export type HostActivity =
   | { kind: 'idle' }
-  | { kind: 'applying'; sessionId: string; takenOver: boolean; visibility: WindowVisibility };
+  | {
+      kind: 'applying';
+      sessionId: string;
+      takenOver: boolean;
+      visibility: WindowVisibility;
+      chromeMode: 'veyquo_profile' | 'everyday_profile';
+    };
 
 export interface ExecutorHostDeps {
   journal: Journal;
@@ -328,7 +334,7 @@ export class ExecutorHost {
     }
     return this.withChrome(
       req,
-      (chrome) => this.openIn(chrome, req, applicationId, visibility),
+      (chrome) => this.openIn(chrome, req, applicationId, visibility, 'veyquo_profile'),
       proxy,
     );
   }
@@ -344,7 +350,7 @@ export class ExecutorHost {
         refused(req, 'chrome_unavailable', 'the Veyquo extension is not connected'),
       );
     }
-    return this.openIn(everyday, req, applicationId, visibility);
+    return this.openIn(everyday, req, applicationId, visibility, 'everyday_profile');
   }
 
   private async openIn(
@@ -352,13 +358,20 @@ export class ExecutorHost {
     req: DeviceRequest,
     applicationId: string | null,
     visibility: WindowVisibility,
+    chromeMode: 'veyquo_profile' | 'everyday_profile',
   ): Promise<DeviceReply> {
     const reply = await chrome.executor.handle(req);
     if (reply.ok && reply.result?.kind === 'opened') {
       const { session_id: sessionId, tab_ref: tabRef } = reply.result;
       this.sessions.set(sessionId, { tabRef, applicationId, chrome });
       if (applicationId !== null) {
-        this.setActivity({ kind: 'applying', sessionId, takenOver: false, visibility });
+        this.setActivity({
+          kind: 'applying',
+          sessionId,
+          takenOver: false,
+          visibility,
+          chromeMode,
+        });
       }
     }
     return reply;

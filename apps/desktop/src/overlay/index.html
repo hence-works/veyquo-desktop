@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Veyquo agent control indicator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="index.js" defer></script>
+  </head>
+  <body>
+    <div id="control" role="status" aria-live="polite">
+      <span class="control-dot" aria-hidden="true"></span>
+      Veyquo is controlling this browser
+    </div>
+    <div id="agent-cursor" aria-hidden="true">
+      <svg width="22" height="28" viewBox="0 0 22 28" aria-hidden="true">
+        <path d="M2 2L19 16H11L7 25L2 2Z" />
+      </svg>
+      <span>Veyquo</span>
+      <i></i>
+    </div>
+  </body>
+</html>

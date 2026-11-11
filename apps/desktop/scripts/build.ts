@@ -30,6 +30,7 @@ const urls = parseBuildUrls(process.env);
 await rm(out, { recursive: true, force: true });
 await rm(hostOut, { recursive: true, force: true });
 await mkdir(join(out, 'renderer'), { recursive: true });
+await mkdir(join(out, 'overlay'), { recursive: true });
 
 const shared = {
   bundle: true,
@@ -65,6 +66,15 @@ await Promise.all([
   }),
   build({
     ...shared,
+    entryPoints: ['src/main/agent-overlay-preload.ts'],
+    outfile: join(out, 'agent-overlay-preload.cjs'),
+    platform: 'node',
+    format: 'cjs',
+    target: 'node24',
+    external: ['electron'],
+  }),
+  build({
+    ...shared,
     entryPoints: ['src/main/native-host/standalone-main.ts'],
     outfile: join(hostOut, 'host.cjs'),
     platform: 'node',
@@ -79,6 +89,14 @@ await Promise.all([
     format: 'iife',
     target: 'chrome140',
   }),
+  build({
+    ...shared,
+    entryPoints: ['src/overlay/index.ts'],
+    outfile: join(out, 'overlay', 'index.js'),
+    platform: 'browser',
+    format: 'iife',
+    target: 'chrome140',
+  }),
 ]);
 
 await cp(join(root, 'src/renderer/index.html'), join(out, 'renderer/index.html'));
@@ -86,6 +104,13 @@ await build({
   bundle: true,
   entryPoints: [join(root, 'src/renderer/styles.css')],
   outfile: join(out, 'renderer/styles.css'),
+  logLevel: 'warning',
+});
+await cp(join(root, 'src/overlay/index.html'), join(out, 'overlay/index.html'));
+await build({
+  bundle: true,
+  entryPoints: [join(root, 'src/overlay/styles.css')],
+  outfile: join(out, 'overlay/styles.css'),
   logLevel: 'warning',
 });
 for (const logo of ['veyquo-logo.png', 'veyquo-logo-dark.png']) {

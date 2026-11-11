@@ -11,6 +11,10 @@ export function statusPageUrl(buildDir: string): string {
   return pathToFileURL(join(buildDir, 'renderer', 'index.html')).href;
 }
 
+export function agentOverlayPageUrl(buildDir: string): string {
+  return pathToFileURL(join(buildDir, 'overlay', 'index.html')).href;
+}
+
 /** Applied once, before any window: every web contents is locked down the same way. */
 export function lockDownWebContents(): void {
   app.on('web-contents-created', (_event, contents) => {
@@ -63,5 +67,40 @@ export function createStatusWindow(options: { buildDir: string; show: boolean })
     if (options.show) window.show();
   });
   void window.loadURL(statusPageUrl(options.buildDir));
+  return window;
+}
+
+/** The agent cursor is a native surface, never an element in the employer page. */
+export function createAgentOverlayWindow(options: {
+  buildDir: string;
+  bounds: { x: number; y: number; width: number; height: number };
+}): BrowserWindow {
+  const window = new BrowserWindow({
+    ...options.bounds,
+    show: false,
+    frame: false,
+    transparent: true,
+    focusable: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    hasShadow: false,
+    skipTaskbar: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: join(options.buildDir, 'agent-overlay-preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      spellcheck: false,
+      devTools: !app.isPackaged,
+    },
+  });
+  window.removeMenu();
+  window.setIgnoreMouseEvents(true, { forward: true });
+  void window.loadURL(agentOverlayPageUrl(options.buildDir));
   return window;
 }
