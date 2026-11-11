@@ -19,6 +19,8 @@ yarn workspace @veyquo/desktop dev
 
 To build against a local checkout, including uncommitted changes, use `just fetch --from ../veyquo`. Do not commit a `yarn.lock` produced from uncommitted package changes.
 
+The private monorepo includes this repository as the submodule `external/veyquo-desktop`. There, run `just fetch --from ../..` inside the submodule; it builds as its own project, separate from the monorepo's workspaces.
+
 Other recipes are listed by `just`. `VEYQUO_BUILD_API_URL` and `VEYQUO_BUILD_WEB_URL` (https) are required for an installer.
 
 ## Updating the private packages
