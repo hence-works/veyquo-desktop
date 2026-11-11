@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fills packages/ with the five workspaces the desktop app builds against. They live in the
+# Fills packages/ with the five workspaces the desktop app and the Chrome extension build against. They live in the
 # private hence-works/veyquo repository and are never committed here.
 #
 #   scripts/fetch-private-packages.sh                 the commit in private-packages.ref

@@ -1,0 +1,32 @@
+{
+  "name": "@veyquo/chrome-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lets Veyquo's desktop app work in the person's everyday Chrome profile, in tabs they allow.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "dev": "vite --config vite.config.ts --host 127.0.0.1",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "node scripts/build.ts && playwright test"
+  },
+  "dependencies": {
+    "@veyquo/device-protocol": "workspace:*",
+    "@veyquo/local-executor": "workspace:*",
+    "@veyquo/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/chrome": "^0.3.5",
+    "@types/node": "^24",
+    "@veyquo/eslint-config": "workspace:*",
+    "@veyquo/typescript-config": "workspace:*",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "typescript": "^6",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.3"
+  }
+}

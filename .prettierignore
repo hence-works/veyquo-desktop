@@ -4,6 +4,7 @@ packages
 .private-src
 private-packages.ref
 build
+dist
 build-host
 coverage
 test-results

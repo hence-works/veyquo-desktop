@@ -1,0 +1,9 @@
+# esbuild output (yarn build) and Playwright's run artefacts
+dist/
+test-results/
+playwright-report/
+# A development signing key, if you made one to pack a .crx: never commit it
+*.pem
+# `just extension-package` output
+release/
+store/
