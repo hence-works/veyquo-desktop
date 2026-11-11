@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Veyquo extension preview</title>
+    <link rel="stylesheet" href="/src/popup.css" />
+    <style>
+      body {
+        width: auto;
+        min-height: 100vh;
+        max-height: none;
+        overflow: auto;
+      }
+      .preview {
+        display: grid;
+        gap: 20px;
+        justify-items: center;
+        padding: 32px 16px;
+      }
+      .preview-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--foreground);
+      }
+      .preview-controls select {
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--foreground);
+      }
+      .popup-frame {
+        width: 600px;
+        max-width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--background);
+        box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="preview">
+      <label class="preview-controls"
+        >Preview state
+        <select id="preview-state">
+          <option value="ready">Connected</option>
+          <option value="offline">Desktop offline</option>
+          <option value="error">Connection check failed</option>
+          <option value="asking">Permission request</option>
+          <option value="granted">Tab granted</option>
+          <option value="applying">Applying</option>
+          <option value="taken_over">Taken over</option>
+        </select>
+      </label>
+      <div class="popup-frame"><main id="root"></main></div>
+    </div>
+    <script type="module" src="/src/preview.ts"></script>
+  </body>
+</html>

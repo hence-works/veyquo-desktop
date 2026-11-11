@@ -1,0 +1,223 @@
+@import '@veyquo/ui/tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 600px;
+  min-height: 540px;
+  max-height: 600px;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground-body);
+  font:
+    14px/20px Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+main {
+  display: flex;
+  min-height: 540px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 2px;
+}
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+.brand-copy {
+  display: grid;
+}
+h1,
+h2,
+p {
+  margin: 0;
+}
+h1 {
+  color: var(--foreground-strong);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 28px;
+}
+.eyebrow {
+  color: var(--foreground-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.connection-card,
+.section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.connection-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--status-neutral);
+}
+.connection-card.online .status-dot {
+  background: var(--status-success);
+}
+.connection-card.offline .status-dot {
+  background: var(--status-warning);
+}
+.connection-card.error .status-dot {
+  background: var(--status-error);
+}
+.connection-label {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.connection-help,
+.supporting {
+  color: var(--foreground-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+.connection-help + .button {
+  margin-top: 10px;
+}
+.section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+.section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.section-kicker {
+  color: var(--foreground-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.section.proxy {
+  background: var(--surface-subtle);
+}
+h2 {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.section.activity {
+  border-color: var(--status-agent);
+  background: var(--status-agent-subtle);
+}
+.section.activity h2 {
+  color: var(--status-agent-foreground);
+}
+.section.notice {
+  border-color: var(--status-warning);
+  background: var(--status-warning-subtle);
+}
+.section.notice h2 {
+  color: var(--status-warning-foreground);
+}
+.button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.button.primary {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.button.primary:hover {
+  background: var(--primary-hover);
+}
+.button.primary:active {
+  background: var(--primary-active);
+}
+.button.secondary {
+  border: 1px solid var(--input);
+  background: var(--card);
+  color: var(--foreground);
+}
+.button.secondary:hover,
+.button.secondary:active {
+  background: var(--secondary);
+}
+.text-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.text-link:hover {
+  color: var(--primary-hover);
+}
+.button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.text-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.footnote {
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  padding: 12px 2px 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+@media (max-width: 340px) {
+  body {
+    width: 100%;
+  }
+  main {
+    padding: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

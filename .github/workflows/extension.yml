@@ -1,0 +1,138 @@
+name: extension
+
+# A tag extension-v<version> (manifest.json's version) builds the Chrome extension and attaches
+# two zips to a DRAFT release, visible only to people with write access:
+#   -unpacked.zip  keeps the development key: unzip and "Load unpacked" to test with the app
+#   -store.zip     without the key, for the Chrome Web Store
+# Zips are never workflow artifacts: those are public here, and the zip bundles private code.
+#
+# The publish job sends the store zip to the Chrome Web Store. It stays off until the store
+# account exists: set the repository variable CHROME_WEB_STORE_ENABLED to 'true' and fill the
+# chrome-web-store environment (README.md). A tag with a suffix (extension-v0.2.0-rc.1) never
+# publishes.
+#
+# SECURITY: see desktop.yml. The package job holds the private-packages deploy key; the publish
+# job holds only a short-lived Google token from Workload Identity Federation and never sees
+# the private repository.
+
+on:
+  push:
+    tags: ['extension-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-${{ github.ref }}
+
+jobs:
+  draft:
+    name: create draft release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      prerelease: ${{ steps.create.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the tag matches the extension version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(jq -r .version apps/chrome-extension/manifest.json)"
+          case "$TAG" in
+            "extension-v$version" | "extension-v$version"-*) ;;
+            *) echo "tag $TAG does not match extension version $version" >&2; exit 1 ;;
+          esac
+      - id: create
+        name: Create the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=()
+          prerelease=false
+          if [[ "$TAG" == extension-v*-* ]]; then flags+=(--prerelease); prerelease=true; fi
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Veyquo Chrome extension ${TAG#extension-}" --notes "" "${flags[@]}"
+
+  package:
+    name: package
+    needs: draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: private-packages
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: pin
+        shell: bash
+        run: echo "ref=$(tr -d '[:space:]' < private-packages.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hence-works/veyquo
+          ref: ${{ steps.pin.outputs.ref }}
+          ssh-key: ${{ secrets.PRIVATE_PACKAGES_DEPLOY_KEY }}
+          persist-credentials: false
+          path: .private-src
+          fetch-depth: 1
+          sparse-checkout: |
+            packages/device-protocol
+            packages/eslint-config
+            packages/local-executor
+            packages/typescript-config
+            packages/ui
+      - shell: bash
+        run: |
+          bash scripts/fetch-private-packages.sh --from .private-src
+          rm -rf .private-src
+      - uses: ./.github/actions/setup
+      - run: just extension-package
+      - name: Attach the zips to the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber apps/chrome-extension/release/*.zip
+
+  publish:
+    name: publish to the Chrome Web Store
+    needs: [draft, package]
+    if: vars.CHROME_WEB_STORE_ENABLED == 'true' && needs.draft.outputs.prerelease != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: chrome-web-store
+    permissions:
+      contents: write # read the draft release's assets
+      id-token: write # Workload Identity Federation
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the store zip from the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*-store.zip' --dir release
+      - id: google
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.CWS_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+      - name: Upload and submit for review
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISH_TYPE: ${{ vars.CWS_PUBLISH_TYPE }}
+        run: bash scripts/chrome-web-store-publish.sh release/*-store.zip

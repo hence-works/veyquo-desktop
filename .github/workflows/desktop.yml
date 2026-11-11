@@ -1,6 +1,6 @@
 name: desktop
 
-# Checks and per-OS packaging. Nothing is uploaded: artifacts on a public repository can be
+# Checks of both apps (desktop and Chrome extension) and per-OS packaging of the desktop app. Nothing is uploaded: artifacts on a public repository can be
 # downloaded by anyone signed in to GitHub, and the packages contain private code.
 #
 # SECURITY. PRIVATE_PACKAGES_DEPLOY_KEY reads the private repository. It exists only as an
@@ -66,6 +66,8 @@ jobs:
       - run: just browsers --with-deps
       - run: yarn workspace @veyquo/desktop electron:install
       - run: just test-integration
+      # Builds both extension zips; they stay on the runner (see the note above).
+      - run: just extension-package
 
   package:
     name: package (${{ matrix.os }})
