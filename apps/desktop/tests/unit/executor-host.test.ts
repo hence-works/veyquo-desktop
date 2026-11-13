@@ -297,6 +297,7 @@ describe('ExecutorHost', () => {
       sessionId,
       takenOver: false,
       visibility: 'visible',
+      chromeMode: 'veyquo_profile',
     });
   });
 

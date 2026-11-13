@@ -36,6 +36,7 @@ import { WebSocket } from 'ws';
 
 import { DevicesApi } from './api.ts';
 import { AccessSession } from './access-session.ts';
+import { AgentOverlay } from './agent-overlay.ts';
 import { createAutostart } from './autostart.ts';
 import { builtInUrls } from './build-urls.ts';
 import { ChromeLauncher } from './chrome/launch.ts';
@@ -69,7 +70,12 @@ import { windowPlacement } from './placement.ts';
 import { AppTray } from './tray.ts';
 import type { TrayAction } from './tray-menu.ts';
 import { checkForUpdates } from './updater.ts';
-import { createStatusWindow, lockDownWebContents, statusPageUrl } from './window.ts';
+import {
+  createAgentOverlayWindow,
+  createStatusWindow,
+  lockDownWebContents,
+  statusPageUrl,
+} from './window.ts';
 import { ipcChannels, type UiCommand, type UiState } from '../shared/ui-state.ts';
 
 const buildDir = __dirname;
@@ -193,6 +199,13 @@ async function main(): Promise<void> {
   const api = new DevicesApi(config.apiUrl, access.fetch);
   lockDownWebContents();
 
+  const primaryBounds = screen.getPrimaryDisplay().bounds;
+  const agentOverlay = new AgentOverlay({
+    window: createAgentOverlayWindow({ buildDir, bounds: primaryBounds }),
+    primaryDisplay: () => screen.getPrimaryDisplay(),
+    displayNearestPoint: (point) => screen.getDisplayNearestPoint(point),
+  });
+
   const processes = systemProcesses(process.platform);
   const locate = chromeLocator();
   const launcher = new ChromeLauncher({
@@ -222,6 +235,7 @@ async function main(): Promise<void> {
       grantKeys: context.grantKeys,
       tempFiles: context.tempFiles,
       emit: context.emit,
+      agentVisual: agentOverlay,
     });
     log.info('chrome.started', { version: started.version });
     return {
@@ -326,6 +340,7 @@ async function main(): Promise<void> {
   let tray: AppTray | null = null;
 
   const pushState = (state: UiState): void => {
+    agentOverlay.activity(state.activity);
     extensions.setActivity(
       state.activity.kind === 'idle'
         ? 'idle'
@@ -511,6 +526,7 @@ async function main(): Promise<void> {
       extensions.close();
       await nativeIpc?.close().catch(() => undefined);
       tray.destroy();
+      agentOverlay.close();
       log.info('app.quit');
       cleanedUp = true;
       app.exit(0);

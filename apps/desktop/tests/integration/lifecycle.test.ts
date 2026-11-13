@@ -83,6 +83,22 @@ async function shows(page: Page | undefined, testId: string, expected: string): 
     .toBe(expected);
 }
 
+async function overlayPage(): Promise<Page> {
+  const app = running?.app;
+  if (app === undefined) throw new Error('the app is not running');
+  let result: Page | undefined;
+  await expect
+    .poll(async () => {
+      for (const page of app.windows()) {
+        if ((await page.title()) === 'Veyquo agent control indicator') result = page;
+      }
+      return result !== undefined;
+    })
+    .toBe(true);
+  if (result === undefined) throw new Error('the agent overlay did not open');
+  return result;
+}
+
 function opened(reply: DeviceReply): string {
   if (!reply.ok || reply.result?.kind !== 'opened') throw new Error('the session did not open');
   return reply.result.session_id;
@@ -185,7 +201,7 @@ describe('the desktop app', () => {
         name: 'session_open',
         application_id: applicationId,
         chrome_mode: 'veyquo_profile',
-        visibility: 'background',
+        visibility: 'visible',
         allowed_hosts: ['127.0.0.1'],
         proxy: null,
       }),
@@ -216,15 +232,32 @@ describe('the desktop app', () => {
     // The window shows the work and lets the person take over.
     const page = running?.page;
     await shows(page, 'status', 'Working');
+    const overlay = await overlayPage();
+    await expect.poll(() => overlay.locator('body').getAttribute('data-active')).toBe('true');
+    const overlayWindow = await running?.app.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find(
+        (candidate) => candidate.getTitle() === 'Veyquo agent control indicator',
+      );
+      return window === undefined
+        ? null
+        : {
+            focusable: window.isFocusable(),
+            focused: window.isFocused(),
+          };
+    });
+    expect(overlayWindow).toEqual({ focusable: false, focused: false });
     await page?.getByTestId('take-over').click();
     const taken = await gateway.frame((f) => f.name === 'takeover' && f.state === 'taken');
     expect(taken).toMatchObject({ session_id: sessionId, application_id: applicationId });
+    await expect.poll(() => overlay.locator('body').getAttribute('data-active')).toBe('false');
     await page?.getByTestId('hand-back').click();
     await gateway.frame((f) => f.name === 'takeover' && f.state === 'handed_back');
+    await expect.poll(() => overlay.locator('body').getAttribute('data-active')).toBe('true');
 
     const closed = await gateway.request({ name: 'session_close' }, sessionId);
     expect(closed.ok).toBe(true);
     await shows(page, 'status', 'Online');
+    await expect.poll(() => overlay.locator('body').getAttribute('data-active')).toBe('false');
   });
 
   it('restart sweeps temp files and reports unacknowledged journal entries', async () => {

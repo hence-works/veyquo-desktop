@@ -9,7 +9,13 @@ export type ChromeAvailability =
   | { available: null };
 
 export type Activity =
-  { kind: 'idle' } | { kind: 'applying'; takenOver: boolean; visibility: 'visible' | 'background' };
+  | { kind: 'idle' }
+  | {
+      kind: 'applying';
+      takenOver: boolean;
+      visibility: 'visible' | 'background';
+      chromeMode?: 'veyquo_profile' | 'everyday_profile';
+    };
 
 export interface Notice {
   tone: 'info' | 'warning' | 'error';

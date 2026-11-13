@@ -57,7 +57,16 @@ export async function launchApp(options: {
     };
     dialog.showMessageBox = () => Promise.resolve({ response: 0, checkboxChecked: false });
   });
-  const page = await app.firstWindow();
+  await app.firstWindow();
+  let page: Page | undefined;
+  const deadline = Date.now() + 30_000;
+  while (page === undefined && Date.now() < deadline) {
+    for (const candidate of app.windows()) {
+      if ((await candidate.title()) === 'Veyquo') page = candidate;
+    }
+    if (page === undefined) await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  if (page === undefined) throw new Error('the Veyquo status window did not open');
   return { app, page };
 }
 

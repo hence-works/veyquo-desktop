@@ -636,7 +636,12 @@ export class DeviceController {
     this.update({
       activity:
         activity.kind === 'applying'
-          ? { kind: 'applying', takenOver: activity.takenOver, visibility: activity.visibility }
+          ? {
+              kind: 'applying',
+              takenOver: activity.takenOver,
+              visibility: activity.visibility,
+              chromeMode: activity.chromeMode,
+            }
           : { kind: 'idle' },
     });
     if (this.online) this.update({ status: this.workingOr('online') });
