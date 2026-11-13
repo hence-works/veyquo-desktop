@@ -23,6 +23,7 @@ import {
   type PowerEvents,
   type SocketLike,
 } from './connection.ts';
+import { EgressTunnel, type EgressSocket } from './egress/tunnel.ts';
 import { ExecutorHost, type HostActivity, type RunningChrome } from './executor-host.ts';
 import { DurableJournal } from './journal.ts';
 import { SecureStorageUnavailableError, type DeviceKey, type Keystore } from './keystore.ts';
@@ -63,6 +64,9 @@ export interface ControllerDeps {
     | 'revokeSelf'
     | 'browserSettings'
     | 'updateBrowserMode'
+    | 'egress'
+    | 'updateEgress'
+    | 'egressConnectUrl'
   >;
   locateChrome: () => Promise<ChromeLocation>;
   /** Launches the Veyquo-profile Chrome and its `LocalExecutor`. */
@@ -73,6 +77,7 @@ export interface ControllerDeps {
   /** Ends a Chrome an earlier run left on the profile. */
   stopStaleChrome: () => Promise<void>;
   openSocket: (url: string, protocols: string[]) => SocketLike;
+  openEgressSocket?: (url: string, protocols: string[]) => EgressSocket;
   power: PowerEvents;
   openExternal: (url: string) => Promise<void>;
   confirm: (question: Confirmation) => Promise<boolean>;
@@ -137,6 +142,8 @@ export class DeviceController {
   private ipcFailed = false;
   private settingsSync: Promise<void> | null = null;
   private settingsMutation: Promise<void> | null = null;
+  private egressSync: Promise<void> | null = null;
+  private egressTunnel: { id: string; tunnel: EgressTunnel } | null = null;
   private auth: DeviceAuth | null = null;
 
   constructor(deps: ControllerDeps) {
@@ -250,6 +257,7 @@ export class DeviceController {
   }
 
   async signOutAccess(): Promise<void> {
+    this.stopEgress();
     this.connection?.stop();
     await this.host?.stopChrome();
     await this.deps.access?.signOut();
@@ -263,6 +271,7 @@ export class DeviceController {
     if (this.connection === null || paused === this.state.paused) return;
     this.update({ paused });
     if (paused) {
+      this.stopEgress();
       this.connection.stop();
       await this.host?.stopChrome();
     } else {
@@ -361,6 +370,7 @@ export class DeviceController {
   shutdown(): void {
     this.cancelPairing();
     this.deps.access?.close();
+    this.stopEgress();
     this.connection?.stop();
     this.connection = null;
     this.auth = null;
@@ -451,6 +461,7 @@ export class DeviceController {
           modes: this.everydayAvailable
             ? ['veyquo_profile', 'everyday_profile']
             : ['veyquo_profile'],
+          capabilities: this.deps.openEgressSocket === undefined ? [] : ['device_egress_v1'],
         }),
       heartbeat: () => {
         void this.syncBrowserSettings(auth);
@@ -463,9 +474,15 @@ export class DeviceController {
       onRequest: (request, reply) => {
         this.handleRequest(host, request, reply);
       },
-      onConnectionLost: () => host.connectionLost(),
+      onConnectionLost: async () => {
+        this.stopEgress();
+        await host.connectionLost();
+      },
       onStatus: (status) => {
-        if (status.state === 'online') void this.syncBrowserSettings(auth);
+        if (status.state === 'online') {
+          void this.syncBrowserSettings(auth);
+          void this.syncEgressConsent(auth);
+        }
         void this.connectionStatus(deviceId, status);
       },
       power: this.deps.power,
@@ -511,6 +528,58 @@ export class DeviceController {
     });
   }
 
+  private syncEgressConsent(auth: DeviceAuth): Promise<void> {
+    if (this.egressSync !== null) return this.egressSync;
+    const running = auth
+      .token()
+      .then((token) => this.deps.api.egress(token))
+      .then((settings) => {
+        if (!settings.enabled) this.stopEgress();
+        this.update({ egress: { ...this.state.egress, enabled: settings.enabled } });
+      })
+      .catch((error: unknown) => {
+        this.log.warn('egress_consent.sync_failed', {
+          error: error instanceof Error ? error.name : 'UnknownError',
+        });
+      })
+      .finally(() => {
+        if (this.egressSync === running) this.egressSync = null;
+      });
+    this.egressSync = running;
+    return running;
+  }
+
+  async setEgressEnabled(enabled: boolean): Promise<void> {
+    const auth = this.auth;
+    if (auth === null || this.state.egress.pending) return;
+    if (!enabled) this.stopEgress();
+    this.update({ egress: { ...this.state.egress, pending: true }, notice: null });
+    try {
+      await this.deps.access?.ensure();
+      const settings = await this.deps.api.updateEgress(await auth.token(), enabled);
+      this.update({
+        egress: { ...this.state.egress, enabled: settings.enabled, pending: false },
+      });
+    } catch {
+      this.update({
+        egress: { ...this.state.egress, pending: false },
+        notice: {
+          tone: 'error',
+          text: 'Could not change cloud browser internet access. Check your connection and try again.',
+        },
+      });
+    }
+  }
+
+  stopEgress(): void {
+    const current = this.egressTunnel;
+    this.egressTunnel = null;
+    current?.tunnel.stop();
+    if (this.state.egress.active) {
+      this.update({ egress: { ...this.state.egress, active: false } });
+    }
+  }
+
   async setBrowserMode(viewId: string, mode: 'veyquo_profile' | 'everyday_profile'): Promise<void> {
     const auth = this.auth;
     if (auth === null) return;
@@ -551,6 +620,10 @@ export class DeviceController {
     request: DeviceRequest,
     reply: (reply: DeviceReply) => void,
   ): void {
+    if (request.op.name === 'egress_open' || request.op.name === 'egress_close') {
+      this.handleEgressRequest(request, reply);
+      return;
+    }
     // Called on receipt; `host.handle` reaches the executor before any await.
     const answer = host.handle(request);
     this.log.info('device.request', { request_id: request.request_id, op: request.op.name });
@@ -571,6 +644,61 @@ export class DeviceController {
           result: null,
           error: { type: 'internal', detail: null },
         });
+      },
+    );
+  }
+
+  private handleEgressRequest(request: DeviceRequest, reply: (reply: DeviceReply) => void): void {
+    const op = request.op;
+    const answer = (ok: boolean, type: 'busy' | 'unsupported' | 'internal' | null = null): void => {
+      reply({
+        request_id: request.request_id,
+        ok,
+        result: ok ? { kind: 'empty' } : null,
+        error: type === null ? null : { type, detail: null },
+      });
+    };
+    this.log.info('device.request', { request_id: request.request_id, op: op.name });
+    if (op.name === 'egress_close') {
+      if (this.egressTunnel?.id === op.tunnel_id) this.stopEgress();
+      answer(true);
+      return;
+    }
+    if (op.name !== 'egress_open') {
+      answer(false, 'internal');
+      return;
+    }
+    if (
+      !this.state.egress.enabled ||
+      this.state.paused ||
+      this.deps.openEgressSocket === undefined
+    ) {
+      answer(false, 'unsupported');
+      return;
+    }
+    if (this.egressTunnel !== null) {
+      answer(false, 'busy');
+      return;
+    }
+    const tunnel = new EgressTunnel({
+      url: this.deps.api.egressConnectUrl,
+      ticket: op.ticket,
+      expiresAt: new Date(op.expires_at),
+      openSocket: this.deps.openEgressSocket,
+      onActive: (active) => {
+        if (this.egressTunnel?.tunnel !== tunnel) return;
+        this.update({ egress: { ...this.state.egress, active } });
+        if (!active) this.egressTunnel = null;
+      },
+    });
+    this.egressTunnel = { id: op.tunnel_id, tunnel };
+    void tunnel.start().then(
+      () => {
+        answer(true);
+      },
+      () => {
+        if (this.egressTunnel?.tunnel === tunnel) this.egressTunnel = null;
+        answer(false, 'internal');
       },
     );
   }

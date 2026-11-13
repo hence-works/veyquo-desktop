@@ -399,6 +399,12 @@ async function main(): Promise<void> {
       });
       return socket;
     },
+    openEgressSocket: (url, protocols) =>
+      new WebSocket(url, protocols, {
+        headers: access.socketHeaders(url),
+        maxPayload: 64 * 1024 + 9,
+        handshakeTimeout: 15_000,
+      }),
     power: powerMonitor,
     openExternal: (url) => shell.openExternal(url),
     confirm,
@@ -450,6 +456,12 @@ async function main(): Promise<void> {
         return;
       case 'set_paused':
         await controller.setPaused(command.paused);
+        return;
+      case 'set_egress_enabled':
+        await controller.setEgressEnabled(command.enabled);
+        return;
+      case 'stop_egress':
+        controller.stopEgress();
         return;
       case 'remove':
         await controller.remove();

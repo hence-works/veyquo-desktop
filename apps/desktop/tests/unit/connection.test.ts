@@ -25,6 +25,7 @@ const hello: HelloEvent = {
   os: 'linux',
   chrome_version: '152.0.7977.75',
   modes: ['veyquo_profile'],
+  capabilities: [],
   journal_id: '7a1c2b8e-0d5a-4c33-9d0e-2a1b3c4d5e6f',
   journal: [],
 };

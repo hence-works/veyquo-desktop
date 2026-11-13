@@ -5,6 +5,7 @@ import { EventEmitter } from 'node:events';
 
 import type { SecretStorage } from '../../src/main/keystore.ts';
 import type { PowerEvents, SocketLike } from '../../src/main/connection.ts';
+import type { EgressSocket } from '../../src/main/egress/tunnel.ts';
 
 const marker = Buffer.from('fake-safe-storage:');
 
@@ -99,5 +100,43 @@ export class FakeSocket extends EventEmitter implements SocketLike {
 export class FakePower extends EventEmitter implements PowerEvents {
   override on(event: 'suspend' | 'resume' | 'unlock-screen', listener: () => void): this {
     return super.on(event, listener);
+  }
+}
+
+export class FakeEgressSocket extends EventEmitter implements EgressSocket {
+  readyState = 0;
+  readonly sent: Buffer[] = [];
+  readonly url: string;
+  readonly protocols: string[];
+  closedWith: number | null = null;
+
+  constructor(url: string, protocols: string[]) {
+    super();
+    this.url = url;
+    this.protocols = protocols;
+  }
+
+  send(data: Buffer): void {
+    this.sent.push(Buffer.from(data));
+  }
+
+  close(code = 1000): void {
+    this.closedWith = code;
+    this.readyState = 3;
+    this.emit('close');
+  }
+
+  terminate(): void {
+    this.readyState = 3;
+    this.emit('close');
+  }
+
+  ping(): void {
+    this.emit('ping');
+  }
+
+  open(): void {
+    this.readyState = 1;
+    this.emit('open');
   }
 }
