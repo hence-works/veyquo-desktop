@@ -47,6 +47,7 @@ export interface UiState {
   }[];
   /** Profile whose browser choice is being saved through the API. */
   browserModePending: string | null;
+  egress: { enabled: boolean; active: boolean; pending: boolean };
   activity: Activity;
   paused: boolean;
   notice: Notice | null;
@@ -65,6 +66,7 @@ export const initialUiState: UiState = {
   selectedModes: { veyquoProfile: false, everydayProfile: false },
   browserProfiles: [],
   browserModePending: null,
+  egress: { enabled: false, active: false, pending: false },
   activity: { kind: 'idle' },
   paused: false,
   notice: null,
@@ -87,6 +89,8 @@ export type UiCommand =
       mode: 'veyquo_profile' | 'everyday_profile';
     }
   | { name: 'set_paused'; paused: boolean }
+  | { name: 'set_egress_enabled'; enabled: boolean }
+  | { name: 'stop_egress' }
   | { name: 'remove' };
 
 /** The preload bridge, as `window.veyquo` in the renderer. */

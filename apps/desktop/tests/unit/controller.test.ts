@@ -13,7 +13,7 @@ import type { Logger } from '../../src/main/log.ts';
 import { ExtensionHub, everydayChrome } from '../../src/main/native-host/extension-transport.ts';
 import type { IpcConnection, IpcFrame } from '../../src/main/native-ipc.ts';
 import type { UiState } from '../../src/shared/ui-state.ts';
-import { FakePower, FakeSocket, fakeSafeStorage } from '../support/fakes.ts';
+import { FakeEgressSocket, FakePower, FakeSocket, fakeSafeStorage } from '../support/fakes.ts';
 
 const deviceId = '6f1c2b8e-0d5a-4c33-9d0e-2a1b3c4d5e6f';
 
@@ -34,9 +34,12 @@ type Api = Pick<
   | 'challenge'
   | 'token'
   | 'connectUrl'
+  | 'egressConnectUrl'
   | 'revokeSelf'
   | 'browserSettings'
   | 'updateBrowserMode'
+  | 'egress'
+  | 'updateEgress'
 >;
 
 function setup(overrides: Partial<ControllerDeps> = {}, api: Partial<Api> = {}) {
@@ -55,6 +58,7 @@ function setup(overrides: Partial<ControllerDeps> = {}, api: Partial<Api> = {}) 
   );
   const fullApi: Api = {
     connectUrl: 'ws://gateway.test/v1/devices/connect',
+    egressConnectUrl: 'ws://gateway.test/v1/device-egress/connect',
     startPairing,
     pairingStatus: vi.fn(() =>
       Promise.resolve({ status: 'approved' as const, device_id: deviceId }),
@@ -64,6 +68,10 @@ function setup(overrides: Partial<ControllerDeps> = {}, api: Partial<Api> = {}) 
     revokeSelf: vi.fn(() => Promise.resolve()),
     browserSettings: vi.fn(() => Promise.resolve({ selected_modes: [], profiles: [] })),
     updateBrowserMode: vi.fn(() => Promise.resolve({ selected_modes: [], profiles: [] })),
+    egress: vi.fn(() => Promise.resolve({ enabled: false, enabled_at: null })),
+    updateEgress: vi.fn((_token: string, enabled: boolean) =>
+      Promise.resolve({ enabled, enabled_at: enabled ? '2026-11-13T00:00:00Z' : null }),
+    ),
     ...api,
   };
   const enableAutostart = vi.fn(() => Promise.resolve());
@@ -307,6 +315,66 @@ describe('DeviceController', () => {
     expect(kit.deps.api.revokeSelf).not.toHaveBeenCalled();
     expect(kit.deps.inform).not.toHaveBeenCalled();
     expect(kit.deps.quit).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes device egress consent only through the authenticated device route', async () => {
+    const updateEgress = vi.fn<Api['updateEgress']>((_token, enabled) =>
+      Promise.resolve({ enabled, enabled_at: enabled ? '2026-11-13T00:00:00Z' : null }),
+    );
+    const kit = await pairedAndOnline({}, { updateEgress });
+    await kit.controller.setEgressEnabled(true);
+    expect(updateEgress).toHaveBeenCalledWith('device-token', true);
+    expect(kit.controller.uiState.egress).toEqual({ enabled: true, active: false, pending: false });
+    await kit.controller.setEgressEnabled(false);
+    expect(updateEgress).toHaveBeenLastCalledWith('device-token', false);
+    expect(kit.controller.uiState.egress.enabled).toBe(false);
+    kit.controller.shutdown();
+  });
+
+  it('advertises and opens one consented egress tunnel, with an immediate local stop', async () => {
+    const relaySockets: FakeEgressSocket[] = [];
+    const kit = await pairedAndOnline(
+      {
+        openEgressSocket: (url, protocols) => {
+          const socket = new FakeEgressSocket(url, protocols);
+          relaySockets.push(socket);
+          queueMicrotask(() => {
+            socket.open();
+          });
+          return socket;
+        },
+      },
+      {
+        egress: vi.fn(() => Promise.resolve({ enabled: true, enabled_at: '2026-11-13T00:00:00Z' })),
+      },
+    );
+    await until(() => kit.controller.uiState.egress.enabled);
+    expect(kit.sockets[0]?.sent[0]).toMatchObject({ capabilities: ['device_egress_v1'] });
+    const gateway = kit.sockets[0];
+    gateway?.receive({
+      request_id: '00000000-0000-4000-8000-0000000000ed',
+      session_id: null,
+      op: {
+        name: 'egress_open',
+        tunnel_id: '10000000-0000-4000-8000-000000000001',
+        browser_session_id: '20000000-0000-4000-8000-000000000002',
+        browser_session_kind: 'managed_profile',
+        ticket: 'base64url-ticket-with-more-than-32-characters',
+        expires_at: new Date(Date.now() + 30_000).toISOString(),
+      },
+    });
+    await until(() => kit.controller.uiState.egress.active);
+    expect(relaySockets[0]?.url).toBe('ws://gateway.test/v1/device-egress/connect');
+    expect(relaySockets[0]?.protocols[0]).toBe('veyquo.egress.v1');
+    expect(
+      (gateway?.sent ?? []).find((message) => message.request_id?.toString().endsWith('ed')),
+    ).toMatchObject({
+      ok: true,
+    });
+    kit.controller.stopEgress();
+    expect(kit.controller.uiState.egress.active).toBe(false);
+    expect(relaySockets[0]?.closedWith).toBe(1000);
+    kit.controller.shutdown();
   });
 });
 

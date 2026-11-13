@@ -58,3 +58,31 @@ it('accepts only an exact browser mode command from the desktop status page', ()
   ).toBeNull();
   expect(parseCommand({ name: 'set_browser_mode', viewId, mode: 'unknown' })).toBeNull();
 });
+
+it('changes egress consent through the device-self route', async () => {
+  const fetch = vi.fn((url: string, init: RequestInit) => {
+    expect(url).toBe('https://api.veyquo.test/v1/devices/self/egress');
+    expect(init.method).toBe('PUT');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer device-token' });
+    expect(init.body).toBe('{"enabled":true}');
+    return Promise.resolve(
+      new Response(JSON.stringify({ enabled: true, enabled_at: '2026-11-13T00:00:00Z' })),
+    );
+  });
+  const api = new DevicesApi('https://api.veyquo.test', fetch);
+
+  await expect(api.updateEgress('device-token', true)).resolves.toEqual({
+    enabled: true,
+    enabled_at: '2026-11-13T00:00:00Z',
+  });
+  expect(api.egressConnectUrl).toBe('wss://api.veyquo.test/v1/device-egress/connect');
+});
+
+it('accepts only typed egress status commands', () => {
+  expect(parseCommand({ name: 'set_egress_enabled', enabled: true })).toEqual({
+    name: 'set_egress_enabled',
+    enabled: true,
+  });
+  expect(parseCommand({ name: 'set_egress_enabled', enabled: 'yes' })).toBeNull();
+  expect(parseCommand({ name: 'stop_egress' })).toEqual({ name: 'stop_egress' });
+});

@@ -61,6 +61,12 @@ const browserSettings = z.object({
 });
 export type DeviceBrowserSettings = z.infer<typeof browserSettings>;
 
+const egressSettings = z.object({
+  enabled: z.boolean(),
+  enabled_at: z.string().nullable(),
+});
+export type DeviceEgressSettings = z.infer<typeof egressSettings>;
+
 const problem = z.object({ type: z.string().optional() }).loose();
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -77,6 +83,12 @@ export class DevicesApi {
   /** The WebSocket URL of the device gateway. */
   get connectUrl(): string {
     return `${this.base.replace(/^http/u, 'ws')}/v1/devices/connect`;
+  }
+
+  /** The dedicated binary relay endpoint. It shares the trusted API origin at ingress but
+   * is served by a separate relay process. */
+  get egressConnectUrl(): string {
+    return `${this.base.replace(/^http/u, 'ws')}/v1/device-egress/connect`;
   }
 
   startPairing(body: {
@@ -128,6 +140,21 @@ export class DevicesApi {
     });
   }
 
+  egress(deviceToken: string): Promise<DeviceEgressSettings> {
+    return this.call('GET', '/v1/devices/self/egress', egressSettings, {
+      headers: { Authorization: `Bearer ${deviceToken}` },
+      deviceRoute: true,
+    });
+  }
+
+  updateEgress(deviceToken: string, enabled: boolean): Promise<DeviceEgressSettings> {
+    return this.call('PUT', '/v1/devices/self/egress', egressSettings, {
+      headers: { Authorization: `Bearer ${deviceToken}` },
+      body: { enabled },
+      deviceRoute: true,
+    });
+  }
+
   /** Revokes this device with its own token (removal from the computer). Already revoked
    * counts as done. */
   async revokeSelf(deviceToken: string): Promise<void> {
@@ -141,7 +168,7 @@ export class DevicesApi {
   }
 
   private async call<T>(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'PUT',
     path: string,
     schema: z.ZodType<T>,
     options: { body?: unknown; headers?: Record<string, string>; deviceRoute?: boolean } = {},

@@ -23,6 +23,8 @@ const command = z.discriminatedUnion('name', [
     mode: z.enum(['veyquo_profile', 'everyday_profile']),
   }),
   z.object({ name: z.literal('set_paused'), paused: z.boolean() }),
+  z.object({ name: z.literal('set_egress_enabled'), enabled: z.boolean() }),
+  z.object({ name: z.literal('stop_egress') }),
   z.object({ name: z.literal('remove') }),
 ]);
 

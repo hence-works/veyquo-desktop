@@ -257,6 +257,47 @@ function chromeCard(state: UiState): HTMLElement {
   );
 }
 
+function egressCard(state: UiState): HTMLElement {
+  const toggle = el('input');
+  toggle.type = 'checkbox';
+  toggle.checked = state.egress.enabled;
+  toggle.disabled = state.egress.pending;
+  toggle.dataset.testid = 'egress-enabled';
+  toggle.addEventListener('change', () => {
+    send({ name: 'set_egress_enabled', enabled: toggle.checked });
+  });
+  return el(
+    'section',
+    { className: state.egress.active ? 'card agent' : 'card', testId: 'egress' },
+    el('h2', {}, 'Cloud browser internet access'),
+    state.egress.active
+      ? el(
+          'p',
+          { role: 'status', testId: 'egress-active' },
+          'A Veyquo cloud browser is using this computer’s internet connection now.',
+        )
+      : el(
+          'p',
+          {},
+          'Allow a cloud browser you select in Veyquo to reach job sites through this computer.',
+        ),
+    el(
+      'p',
+      { className: 'muted' },
+      'Job sites will see this computer’s public IP address. Your local DNS provider may see the requested site names. Veyquo does not decrypt the secure site traffic.',
+    ),
+    el('label', { className: 'toggle' }, toggle, 'Allow access from selected cloud browsers'),
+    state.egress.pending ? el('p', { className: 'muted', role: 'status' }, 'Saving…') : null,
+    state.egress.active
+      ? el(
+          'div',
+          { className: 'actions' },
+          button('Stop now', { name: 'stop_egress' }, 'destructive', 'stop-egress'),
+        )
+      : null,
+  );
+}
+
 function activityCard(state: UiState): HTMLElement {
   const activity = state.activity;
   if (activity.kind === 'idle') {
@@ -372,6 +413,7 @@ function render(state: UiState): void {
         ),
     accessCard(state),
     paired ? activityCard(state) : null,
+    paired ? egressCard(state) : null,
     paired
       ? el(
           'section',
