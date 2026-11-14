@@ -1,7 +1,10 @@
 name: desktop
 
-# Checks of both apps (desktop and Chrome extension) and per-OS packaging of the desktop app. Nothing is uploaded: artifacts on a public repository can be
-# downloaded by anyone signed in to GitHub, and the packages contain private code.
+# Checks of both apps (desktop and Chrome extension) and per-OS packaging of the desktop app.
+# Pull-request packages stay on the runner: workflow artifacts in this public repository can be
+# downloaded by anyone signed in to GitHub, and the packages contain private code. A main-branch
+# commit instead uploads its packages directly to a draft release, visible only to people with
+# write access. The newest 10 commit releases are retained.
 #
 # SECURITY. PRIVATE_PACKAGES_DEPLOY_KEY reads the private repository. It exists only as an
 # environment secret and is read by one `actions/checkout` step per job, before any script from
@@ -23,7 +26,8 @@ permissions:
 
 concurrency:
   group: desktop-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep every main commit so each receives a build. Superseded pull-request runs may be cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
@@ -66,15 +70,16 @@ jobs:
       - run: just browsers --with-deps
       - run: yarn workspace @veyquo/desktop electron:install
       - run: just test-integration
-      # Builds both extension zips; they stay on the runner (see the note above).
-      - run: just extension-package
+      # On pull requests, verify both extension packages without uploading them.
+      - if: github.event_name == 'pull_request'
+        run: just extension-package
 
   package:
     name: package (${{ matrix.os }})
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
-    environment: ${{ github.event_name == 'pull_request' && 'private-packages-pr' || 'private-packages' }}
+    environment: private-packages-pr
     strategy:
       fail-fast: false
       matrix:
@@ -109,3 +114,164 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/build-desktop
+
+  commit-draft:
+    name: create commit draft release
+    if: github.event_name == 'push'
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.draft.outputs.tag }}
+    steps:
+      - id: draft
+        name: Create the private commit build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-$GITHUB_SHA"
+          short_sha="${GITHUB_SHA:0:12}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [[ "$is_draft" != true ]]; then
+              echo "refusing to upload a commit build to published release $tag" >&2
+              exit 1
+            fi
+            echo "Reusing existing draft release $tag"
+          else
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --draft \
+              --target "$GITHUB_SHA" --title "Main build $short_sha" \
+              --notes "Automated staging build for commit $GITHUB_SHA."
+          fi
+
+  commit-desktop:
+    name: commit package (${{ matrix.os }})
+    if: github.event_name == 'push'
+    needs: commit-draft
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    environment: private-packages
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-24.04]
+    env:
+      VEYQUO_BUILD_API_URL: ${{ vars.VEYQUO_BUILD_API_URL }}
+      VEYQUO_BUILD_WEB_URL: ${{ vars.VEYQUO_BUILD_WEB_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: pin
+        shell: bash
+        run: echo "ref=$(tr -d '[:space:]' < private-packages.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hence-works/veyquo
+          ref: ${{ steps.pin.outputs.ref }}
+          ssh-key: ${{ secrets.PRIVATE_PACKAGES_DEPLOY_KEY }}
+          persist-credentials: false
+          path: .private-src
+          fetch-depth: 1
+          sparse-checkout: |
+            packages/device-protocol
+            packages/eslint-config
+            packages/local-executor
+            packages/typescript-config
+            packages/ui
+      - shell: bash
+        run: |
+          bash scripts/fetch-private-packages.sh --from .private-src
+          rm -rf .private-src
+      - uses: ./.github/actions/build-desktop
+      - name: Attach the installers to the draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.commit-draft.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/*.exe apps/desktop/release/*.AppImage)
+          if [ "${#files[@]}" -eq 0 ]; then echo "no installers were built" >&2; exit 1; fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+
+  commit-extension:
+    name: commit extension packages
+    if: github.event_name == 'push'
+    needs: commit-draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: private-packages
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: pin
+        shell: bash
+        run: echo "ref=$(tr -d '[:space:]' < private-packages.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hence-works/veyquo
+          ref: ${{ steps.pin.outputs.ref }}
+          ssh-key: ${{ secrets.PRIVATE_PACKAGES_DEPLOY_KEY }}
+          persist-credentials: false
+          path: .private-src
+          fetch-depth: 1
+          sparse-checkout: |
+            packages/device-protocol
+            packages/eslint-config
+            packages/local-executor
+            packages/typescript-config
+            packages/ui
+      - shell: bash
+        run: |
+          bash scripts/fetch-private-packages.sh --from .private-src
+          rm -rf .private-src
+      - uses: ./.github/actions/setup
+      - run: just extension-package
+      - name: Attach the extension zips to the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.commit-draft.outputs.tag }}
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber apps/chrome-extension/release/*.zip
+
+  commit-cleanup:
+    name: finalize commit build retention
+    if: always() && needs.commit-draft.result == 'success'
+    needs: [commit-draft, commit-desktop, commit-extension]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Remove an incomplete build or prune old builds
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.commit-draft.outputs.tag }}
+          DESKTOP_RESULT: ${{ needs.commit-desktop.result }}
+          EXTENSION_RESULT: ${{ needs.commit-extension.result }}
+        run: |
+          if [[ "$DESKTOP_RESULT" != success || "$EXTENSION_RESULT" != success ]]; then
+            echo "Removing incomplete commit build $TAG"
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+            fi
+            exit 0
+          fi
+
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.draft == true and (.tag_name | startswith("build-"))) | [.created_at, .tag_name] | @tsv' \
+            | sort -r | tail -n +11 | cut -f2- \
+            | while IFS= read -r old_tag; do
+                [[ "$old_tag" == build-* ]] || { echo "refusing to delete unexpected tag: $old_tag" >&2; exit 1; }
+                gh release delete "$old_tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+              done
