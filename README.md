@@ -23,6 +23,12 @@ The private monorepo includes this repository as the submodule `external/veyquo-
 
 Other recipes are listed by `just`. `VEYQUO_BUILD_API_URL` and `VEYQUO_BUILD_WEB_URL` (https) are required for an installer.
 
+## Commit builds
+
+Every commit merged to `main` builds the desktop installers for macOS, Windows and Linux, plus both Chrome extension zips. The packages use the staging API and web URLs configured in the repository variables and are attached to a draft release named `build-<commit SHA>`.
+
+Draft releases are visible only to people with write access to this repository. Packages are never uploaded as workflow artifacts because those would be exposed by the public repository. CI retains the newest 10 commit builds and removes older commit drafts and their tags. Versioned desktop and extension releases are managed separately and are never removed by this cleanup.
+
 ## Updating the private packages
 
 After a change lands on the private repository's `main`:
