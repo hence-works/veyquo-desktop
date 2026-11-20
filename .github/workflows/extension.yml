@@ -11,9 +11,9 @@ name: extension
 # chrome-web-store environment (README.md). A tag with a suffix (extension-v0.2.0-rc.1) never
 # publishes.
 #
-# SECURITY: see desktop.yml. The package job holds the private-packages deploy key; the publish
-# job holds only a short-lived Google token from Workload Identity Federation and never sees
-# the private repository.
+# SECURITY: see desktop.yml. The package job holds the scoped private dependency deploy keys; the
+# publish job holds only a short-lived Google token from Workload Identity Federation and never
+# sees the private repositories.
 
 on:
   push:
@@ -95,6 +95,8 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/setup
+        with:
+          adspower-deploy-key: ${{ secrets.ADSPOWER_DEPLOY_KEY }}
       - run: just extension-package
       - name: Attach the zips to the draft
         env:

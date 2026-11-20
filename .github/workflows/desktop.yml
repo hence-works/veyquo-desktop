@@ -6,10 +6,10 @@ name: desktop
 # commit instead uploads its packages directly to a draft release, visible only to people with
 # write access. The newest 10 commit releases are retained.
 #
-# SECURITY. PRIVATE_PACKAGES_DEPLOY_KEY reads the private repository. It exists only as an
-# environment secret and is read by one `actions/checkout` step per job, before any script from
-# this repository runs. Never use pull_request_target here, never move the key to a repository
-# secret, never pass it to another step, and never upload or cache packages/.
+# SECURITY. PRIVATE_PACKAGES_DEPLOY_KEY reads the private monorepo. ADSPOWER_DEPLOY_KEY reads only
+# the private AdsPower helper and exists only while the locked Yarn install runs. Both are protected
+# environment secrets. Never use pull_request_target here, never move either key to a repository
+# secret, and never upload or cache packages/.
 #
 # - private-packages: limited to main and v* tags.
 # - private-packages-pr: any ref, but a required reviewer must approve each run. Read any change
@@ -62,6 +62,8 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/setup
+        with:
+          adspower-deploy-key: ${{ secrets.ADSPOWER_DEPLOY_KEY }}
       - run: sudo apt-get update && sudo apt-get install -y xvfb
       - run: just fmt-check
       - run: just lint
@@ -114,6 +116,8 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/build-desktop
+        with:
+          adspower-deploy-key: ${{ secrets.ADSPOWER_DEPLOY_KEY }}
 
   commit-draft:
     name: create commit draft release
@@ -190,6 +194,8 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/build-desktop
+        with:
+          adspower-deploy-key: ${{ secrets.ADSPOWER_DEPLOY_KEY }}
       - name: Attach the installers to the draft
         shell: bash
         env:
@@ -236,6 +242,8 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/setup
+        with:
+          adspower-deploy-key: ${{ secrets.ADSPOWER_DEPLOY_KEY }}
       - run: just extension-package
       - name: Attach the extension zips to the draft
         env:

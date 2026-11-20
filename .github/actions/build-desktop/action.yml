@@ -3,10 +3,17 @@ description: >-
   Package the desktop app for this OS, check its fuses and smoke-test it. Runs after the private
   packages are in packages/. The caller sets VEYQUO_BUILD_API_URL and VEYQUO_BUILD_WEB_URL.
 
+inputs:
+  adspower-deploy-key:
+    description: Read-only SSH deploy key for the private AdsPower helper dependency.
+    required: true
+
 runs:
   using: composite
   steps:
     - uses: ./.github/actions/setup
+      with:
+        adspower-deploy-key: ${{ inputs.adspower-deploy-key }}
 
     # Linux: the smoke check needs a display and the AppImage needs FUSE 2.
     - if: runner.os == 'Linux'

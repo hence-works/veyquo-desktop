@@ -91,6 +91,8 @@ jobs:
           bash scripts/fetch-private-packages.sh --from .private-src
           rm -rf .private-src
       - uses: ./.github/actions/build-desktop
+        with:
+          adspower-deploy-key: ${{ secrets.ADSPOWER_DEPLOY_KEY }}
       - name: Attach the installers to the draft
         shell: bash
         env:
