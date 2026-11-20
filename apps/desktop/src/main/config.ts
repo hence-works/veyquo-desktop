@@ -1,9 +1,10 @@
 // Where the app finds Veyquo: `VEYQUO_API_URL` and `VEYQUO_WEB_URL` from the environment,
 // else `userData/config.json`, else the URLs the build carries (`build-urls.ts`), else (only
-// when not packaged) the local dev stack on http://localhost:8400 and :3400. A packaged build
-// never falls back to localhost, and skips saved plain-http URLs (a development run's, in a
-// shared folder). Only what the environment sets is saved to the file, so a later release's
-// built-in URLs apply after an update.
+// when not packaged) the local dev stack on http://localhost:8400 and :3400. The managed-profile
+// browser engine comes from VEYQUO_BROWSER_ENGINE, then the saved config, and defaults to Chrome.
+// A packaged build never falls back to localhost, and skips saved plain-http URLs (a development
+// run's, in a shared folder). Only what the environment sets is saved to the file, so a later
+// release's built-in URLs apply after an update.
 
 import { readFile } from 'node:fs/promises';
 
@@ -11,17 +12,29 @@ import { z } from 'zod';
 
 import { writeFileDurably } from './durable-file.ts';
 
-export interface AppConfig {
+export type BrowserEngine = 'chrome' | 'adspower_sunbrowser' | 'adspower_flowerbrowser';
+
+export interface UrlConfig {
   apiUrl: string;
   webUrl: string;
+}
+
+export interface AppConfig extends UrlConfig {
+  browserEngine: BrowserEngine;
 }
 
 export const defaultConfig: AppConfig = {
   apiUrl: 'http://localhost:8400',
   webUrl: 'http://localhost:3400',
+  browserEngine: 'chrome',
 };
 
-const saved = z.object({ api_url: z.string().optional(), web_url: z.string().optional() });
+const browserEngine = z.enum(['chrome', 'adspower_sunbrowser', 'adspower_flowerbrowser']);
+const saved = z.object({
+  api_url: z.string().optional(),
+  web_url: z.string().optional(),
+  browser_engine: browserEngine.optional(),
+});
 
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
 
@@ -46,7 +59,7 @@ function webUrl(name: string, value: string, packaged: boolean): string {
 export interface LoadConfigOptions {
   packaged?: boolean;
   /** The URLs the build carries; null for a build without them. */
-  defaults?: AppConfig | null;
+  defaults?: UrlConfig | null;
 }
 
 export async function loadConfig(
@@ -70,6 +83,14 @@ export async function loadConfig(
     packaged && value !== undefined && /^http:/iu.test(value.trim()) ? undefined : value;
   const explicitApi = env.VEYQUO_API_URL ?? usable(stored.api_url);
   const explicitWeb = env.VEYQUO_WEB_URL ?? usable(stored.web_url);
+  const selectedEngine = browserEngine.safeParse(
+    env.VEYQUO_BROWSER_ENGINE ?? stored.browser_engine ?? 'chrome',
+  );
+  if (!selectedEngine.success) {
+    throw new Error(
+      'VEYQUO_BROWSER_ENGINE must be chrome, adspower_sunbrowser, or adspower_flowerbrowser',
+    );
+  }
   const pick = (name: string, explicit: string | undefined, built: string | undefined): string => {
     const value = explicit ?? built;
     if (value === undefined)
@@ -79,13 +100,19 @@ export async function loadConfig(
   const config: AppConfig = {
     apiUrl: pick('VEYQUO_API_URL', explicitApi, fallback?.apiUrl),
     webUrl: pick('VEYQUO_WEB_URL', explicitWeb, fallback?.webUrl),
+    browserEngine: selectedEngine.data,
   };
-  if (env.VEYQUO_API_URL !== undefined || env.VEYQUO_WEB_URL !== undefined) {
+  if (
+    env.VEYQUO_API_URL !== undefined ||
+    env.VEYQUO_WEB_URL !== undefined ||
+    env.VEYQUO_BROWSER_ENGINE !== undefined
+  ) {
     // What the environment set is remembered; other saved values stay as they were.
     const remembered = {
       ...stored,
       ...(env.VEYQUO_API_URL === undefined ? {} : { api_url: config.apiUrl }),
       ...(env.VEYQUO_WEB_URL === undefined ? {} : { web_url: config.webUrl }),
+      ...(env.VEYQUO_BROWSER_ENGINE === undefined ? {} : { browser_engine: config.browserEngine }),
     };
     await writeFileDurably(file, `${JSON.stringify(remembered, null, 2)}\n`);
   }

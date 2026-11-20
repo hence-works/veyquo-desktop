@@ -9,6 +9,20 @@ Copyright © Hence Works. All rights reserved. This repository is public so its 
 Both apps build against five workspaces from the private `hence-works/veyquo` repository. They are fetched into `packages/` (git-ignored) at the commit in `private-packages.ref`. **Without access to that repository neither app can be installed or built.**
 
 You need Node 24, Corepack, [just](https://just.systems) and Google Chrome stable.
+The managed Veyquo profile can instead use SunBrowser 157 on Linux, macOS, or Windows:
+
+```powershell
+$env:VEYQUO_BROWSER_ENGINE = "adspower_sunbrowser"
+yarn workspace @veyquo/desktop dev
+```
+
+The choice is remembered in the desktop config. `chrome` remains the default. SunBrowser uses a
+dedicated Veyquo-owned profile and connects over its loopback CDP WebSocket; proxy credentials stay
+in the Electron main process. An explicit or AdsPower-installed kernel is preferred. Otherwise the
+launcher downloads the platform's pinned v157 GitHub release and verifies its SHA-256 digest before
+using the per-user cache. `adspower_flowerbrowser` is a reserved WebDriver BiDi choice and fails
+closed until the BiDi executor has feature parity with the CDP executor. FlowerBrowser remains
+Windows-only.
 
 ```bash
 just fetch

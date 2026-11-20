@@ -37,6 +37,9 @@ export async function wipeRevokedDevice(deps: {
     await deps.stopChrome();
     await remove(deps.paths.chromeProfile);
     await remove(deps.paths.chromePid);
+    await remove(deps.paths.sunBrowserProfile);
+    await remove(deps.paths.sunBrowserPid);
+    await remove(deps.paths.flowerBrowserProfile);
   }
 }
 
@@ -75,6 +78,9 @@ export async function removeFromComputer(deps: RemoveDeps): Promise<RemoveOutcom
   await removeCredentials(deps.paths);
   await remove(deps.paths.chromeProfile);
   await remove(deps.paths.chromePid);
+  await remove(deps.paths.sunBrowserProfile);
+  await remove(deps.paths.sunBrowserPid);
+  await remove(deps.paths.flowerBrowserProfile);
   await remove(deps.paths.config);
   await remove(deps.paths.nativeKey);
   await remove(deps.paths.logs);

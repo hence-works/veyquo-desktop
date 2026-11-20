@@ -21,6 +21,7 @@ describe('loadConfig', () => {
     expect(await loadConfig(file, {})).toEqual({
       apiUrl: 'http://localhost:8400',
       webUrl: 'http://localhost:3400',
+      browserEngine: 'chrome',
     });
     await expect(readFile(file, 'utf8')).rejects.toThrow(/ENOENT/u);
   });
@@ -31,16 +32,23 @@ describe('loadConfig', () => {
     expect(await loadConfig(file, {})).toEqual({
       apiUrl: 'http://127.0.0.1:9999',
       webUrl: 'http://localhost:3400',
+      browserEngine: 'chrome',
     });
   });
 
   it('a packaged build uses the URLs it was built with, and never pins them', async () => {
     const built = { apiUrl: 'https://api.veyquo.com', webUrl: 'https://veyquo.com' };
-    expect(await loadConfig(file, {}, { packaged: true, defaults: built })).toEqual(built);
+    expect(await loadConfig(file, {}, { packaged: true, defaults: built })).toEqual({
+      ...built,
+      browserEngine: 'chrome',
+    });
     await expect(readFile(file, 'utf8')).rejects.toThrow(/ENOENT/u);
     // The next release's URLs apply after an update.
     const next = { apiUrl: 'https://api2.veyquo.com', webUrl: 'https://veyquo.com' };
-    expect(await loadConfig(file, {}, { packaged: true, defaults: next })).toEqual(next);
+    expect(await loadConfig(file, {}, { packaged: true, defaults: next })).toEqual({
+      ...next,
+      browserEngine: 'chrome',
+    });
   });
 
   it('a packaged build without built-in URLs never falls back to localhost', async () => {
@@ -53,7 +61,11 @@ describe('loadConfig', () => {
         { VEYQUO_API_URL: 'http://localhost:8400', VEYQUO_WEB_URL: 'http://localhost:3400' },
         { packaged: true, defaults: null },
       ),
-    ).toEqual({ apiUrl: 'http://localhost:8400', webUrl: 'http://localhost:3400' });
+    ).toEqual({
+      apiUrl: 'http://localhost:8400',
+      webUrl: 'http://localhost:3400',
+      browserEngine: 'chrome',
+    });
   });
 
   it('reads the saved file, and the environment wins over it', async () => {
@@ -64,10 +76,12 @@ describe('loadConfig', () => {
     expect(await loadConfig(file, {})).toEqual({
       apiUrl: 'https://api.veyquo.com',
       webUrl: 'https://veyquo.com',
+      browserEngine: 'chrome',
     });
     expect(await loadConfig(file, { VEYQUO_API_URL: 'http://127.0.0.1:9999/' })).toEqual({
       apiUrl: 'http://127.0.0.1:9999',
       webUrl: 'https://veyquo.com',
+      browserEngine: 'chrome',
     });
   });
 
@@ -101,7 +115,10 @@ describe('loadConfig', () => {
     })}\n`;
     await writeFile(file, devFile);
     const built = { apiUrl: 'https://api.veyquo.com', webUrl: 'https://veyquo.com' };
-    expect(await loadConfig(file, {}, { packaged: true, defaults: built })).toEqual(built);
+    expect(await loadConfig(file, {}, { packaged: true, defaults: built })).toEqual({
+      ...built,
+      browserEngine: 'chrome',
+    });
     await expect(loadConfig(file, {}, { packaged: true, defaults: null })).rejects.toThrow(
       /this build has no Veyquo address/u,
     );
@@ -119,6 +136,7 @@ describe('loadConfig', () => {
     expect(await loadConfig(file, {}, { packaged: true, defaults: built })).toEqual({
       apiUrl: 'https://api.eu.veyquo.com',
       webUrl: 'https://veyquo.com',
+      browserEngine: 'chrome',
     });
     expect(
       await loadConfig(
@@ -126,7 +144,25 @@ describe('loadConfig', () => {
         { VEYQUO_WEB_URL: 'http://localhost:3400' },
         { packaged: true, defaults: built },
       ),
-    ).toEqual({ apiUrl: 'https://api.eu.veyquo.com', webUrl: 'http://localhost:3400' });
+    ).toEqual({
+      apiUrl: 'https://api.eu.veyquo.com',
+      webUrl: 'http://localhost:3400',
+      browserEngine: 'chrome',
+    });
+  });
+
+  it('selects and remembers an AdsPower browser engine', async () => {
+    expect(await loadConfig(file, { VEYQUO_BROWSER_ENGINE: 'adspower_sunbrowser' })).toHaveProperty(
+      'browserEngine',
+      'adspower_sunbrowser',
+    );
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
+      browser_engine: 'adspower_sunbrowser',
+    });
+    expect((await loadConfig(file, {})).browserEngine).toBe('adspower_sunbrowser');
+    await expect(loadConfig(file, { VEYQUO_BROWSER_ENGINE: 'unknown' })).rejects.toThrow(
+      /VEYQUO_BROWSER_ENGINE/u,
+    );
   });
 
   it('a broken saved file falls back to the defaults', async () => {

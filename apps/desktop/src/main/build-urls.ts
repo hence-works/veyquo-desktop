@@ -3,9 +3,9 @@
 // in as `__VEYQUO_BUILD_URLS__`). Both or neither, https only, no credentials. A build
 // without them falls back to the local dev stack only when it is not packaged.
 
-import type { AppConfig } from './config.ts';
+import type { UrlConfig } from './config.ts';
 
-declare const __VEYQUO_BUILD_URLS__: AppConfig | null | undefined;
+declare const __VEYQUO_BUILD_URLS__: UrlConfig | null | undefined;
 
 function httpsUrl(name: string, value: string): string {
   let url: URL;
@@ -19,7 +19,7 @@ function httpsUrl(name: string, value: string): string {
   return `${url.origin}${url.pathname}`.replace(/\/+$/u, '');
 }
 
-export function parseBuildUrls(env: Record<string, string | undefined>): AppConfig | null {
+export function parseBuildUrls(env: Record<string, string | undefined>): UrlConfig | null {
   const api = env.VEYQUO_BUILD_API_URL ?? '';
   const web = env.VEYQUO_BUILD_WEB_URL ?? '';
   if (api === '' && web === '') return null;
@@ -33,6 +33,6 @@ export function parseBuildUrls(env: Record<string, string | undefined>): AppConf
 }
 
 /** The URLs this bundle was built with (null for a development build or a test). */
-export function builtInUrls(): AppConfig | null {
+export function builtInUrls(): UrlConfig | null {
   return typeof __VEYQUO_BUILD_URLS__ === 'undefined' ? null : __VEYQUO_BUILD_URLS__;
 }

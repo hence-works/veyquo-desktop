@@ -7,6 +7,7 @@
 //   VEYQUO_DESKTOP_INSECURE_KEYSTORE=1  Linux only: accept safeStorage's plain-text fallback
 //   VEYQUO_DESKTOP_AUTOSTART=1          register autostart from an unpackaged run too
 //   VEYQUO_CHROME_PATH=<path>           use this Chrome (still version-checked; packaged too)
+//   VEYQUO_BROWSER_ENGINE=<engine>       chrome or a Windows AdsPower kernel (packaged too)
 //   --hidden                            start in the tray without the window (autostart)
 //
 // `--smoke` (packaged too): find Chrome, load the executor, print one JSON line and exit
@@ -37,9 +38,10 @@ import { WebSocket } from 'ws';
 import { DevicesApi } from './api.ts';
 import { AccessSession } from './access-session.ts';
 import { AgentOverlay } from './agent-overlay.ts';
+import { SunBrowserLauncher } from './adspower/launcher.ts';
 import { createAutostart } from './autostart.ts';
 import { builtInUrls } from './build-urls.ts';
-import { ChromeLauncher } from './chrome/launch.ts';
+import { ChromeLauncher, ChromeUnavailableError } from './chrome/launch.ts';
 import { locateChrome } from './chrome/locate.ts';
 import { runProgram, systemProcesses } from './chrome/processes.ts';
 import { isOwnPage, parseCommand } from './commands.ts';
@@ -207,9 +209,30 @@ async function main(): Promise<void> {
   });
 
   const processes = systemProcesses(process.platform);
-  const locate = chromeLocator();
+  const locateGoogleChrome = chromeLocator();
+  const locate =
+    config.browserEngine === 'chrome'
+      ? locateGoogleChrome
+      : () =>
+          Promise.resolve(
+            config.browserEngine === 'adspower_sunbrowser' || process.platform === 'win32'
+              ? {
+                  ok: true as const,
+                  path: config.browserEngine,
+                  version:
+                    config.browserEngine === 'adspower_sunbrowser'
+                      ? 'AdsPower SunBrowser'
+                      : 'AdsPower FlowerBrowser',
+                  major: 157,
+                }
+              : {
+                  ok: false as const,
+                  error: 'chrome_unavailable' as const,
+                  reason: 'missing' as const,
+                },
+          );
   const launcher = new ChromeLauncher({
-    locate,
+    locate: locateGoogleChrome,
     userDataDir: paths.chromeProfile,
     pidFile: paths.chromePid,
     processes,
@@ -219,13 +242,26 @@ async function main(): Promise<void> {
     },
     sleep,
   });
+  const sunBrowser = new SunBrowserLauncher({
+    profileDir: paths.sunBrowserProfile,
+    pidFile: paths.sunBrowserPid,
+    processes,
+    sleep,
+  });
   const startChrome = async (
     context: ChromeContext,
     proxy: DeviceProxy | null,
   ): Promise<RunningChrome> => {
-    const started = await launcher.start(
-      proxy === null ? [] : [`--proxy-server=${proxy.endpoint}`],
-    );
+    if (config.browserEngine === 'adspower_flowerbrowser') {
+      throw new ChromeUnavailableError(
+        'failed_to_start',
+        'FlowerBrowser is configured, but the WebDriver BiDi executor is not installed yet.',
+      );
+    }
+    const started =
+      config.browserEngine === 'adspower_sunbrowser'
+        ? await sunBrowser.start(proxy)
+        : await launcher.start(proxy === null ? [] : [`--proxy-server=${proxy.endpoint}`]);
     const transport = started.transport;
     const tabs = new CdpTabHost(transport, { placement: windowPlacement(screen) });
     const executor = new LocalExecutor({
@@ -237,7 +273,7 @@ async function main(): Promise<void> {
       emit: context.emit,
       agentVisual: agentOverlay,
     });
-    log.info('chrome.started', { version: started.version });
+    log.info('chrome.started', { engine: config.browserEngine, version: started.version });
     return {
       executor,
       tabs,
@@ -247,6 +283,9 @@ async function main(): Promise<void> {
       stop: async () => {
         await executor.shutdown();
         await transport.close();
+        if (config.browserEngine === 'adspower_sunbrowser' && 'pid' in started) {
+          await sunBrowser.stop(started.pid);
+        }
       },
     };
   };
@@ -377,7 +416,10 @@ async function main(): Promise<void> {
     startChrome,
     startEveryday,
     unregisterNativeHost: () => unregisterNativeHost(hostRegistration),
-    stopStaleChrome: () => launcher.terminateStale(),
+    stopStaleChrome: async () => {
+      await launcher.terminateStale();
+      await sunBrowser.terminateStale();
+    },
     openSocket: (url, protocols) => {
       const socket = new WebSocket(url, protocols, {
         headers: access.socketHeaders(url),

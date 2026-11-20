@@ -21,6 +21,11 @@ export interface AppPaths {
   chromeProfile: string;
   /** The PID of the Chrome this app launched. */
   chromePid: string;
+  /** AdsPower SunBrowser profile and last launched PID. */
+  sunBrowserProfile: string;
+  sunBrowserPid: string;
+  /** Reserved for the WebDriver BiDi FlowerBrowser executor. */
+  flowerBrowserProfile: string;
   logs: string;
   /** The local IPC endpoint for the native-messaging host (Task 10), POSIX only. */
   nativeSocket: string;
@@ -39,6 +44,9 @@ export function appPaths(userData: string): AppPaths {
     tmp: join(userData, 'tmp'),
     chromeProfile: join(userData, 'chrome-profile'),
     chromePid: join(userData, 'chrome.pid'),
+    sunBrowserProfile: join(userData, 'sunbrowser-profile'),
+    sunBrowserPid: join(userData, 'sunbrowser.pid'),
+    flowerBrowserProfile: join(userData, 'flowerbrowser-profile'),
     logs: join(userData, 'logs'),
     nativeSocket: join(userData, 'native.sock'),
     nativeKey: join(userData, 'native-ipc.key'),

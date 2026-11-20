@@ -17,14 +17,14 @@ import type { ChromeLocation } from './locate.ts';
 export class ChromeUnavailableError extends Error {
   readonly reason: 'missing' | 'too_old' | 'unknown_version' | 'failed_to_start';
 
-  constructor(reason: ChromeUnavailableError['reason']) {
+  constructor(reason: ChromeUnavailableError['reason'], detail?: string) {
     const messages = {
       missing: 'Google Chrome is not installed on this computer.',
       too_old: 'Google Chrome needs updating: Veyquo needs version 136 or newer.',
       unknown_version: "Veyquo could not read this Chrome's version.",
       failed_to_start: 'Google Chrome did not start.',
     } as const;
-    super(messages[reason]);
+    super(detail ?? messages[reason]);
     this.name = 'ChromeUnavailableError';
     this.reason = reason;
   }

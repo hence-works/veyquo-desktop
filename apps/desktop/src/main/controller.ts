@@ -436,7 +436,11 @@ export class DeviceController {
         this.everydayAvailable ? (this.deps.startEveryday?.(context) ?? null) : null,
       confirmClearProfile: () => this.deps.confirm('clear_profile'),
       clearProfile: () =>
-        rm(this.deps.paths.chromeProfile, { recursive: true, force: true, maxRetries: 3 }),
+        Promise.all([
+          rm(this.deps.paths.chromeProfile, { recursive: true, force: true, maxRetries: 3 }),
+          rm(this.deps.paths.sunBrowserProfile, { recursive: true, force: true, maxRetries: 3 }),
+          rm(this.deps.paths.flowerBrowserProfile, { recursive: true, force: true, maxRetries: 3 }),
+        ]).then(() => undefined),
       onActivity: (activity) => {
         this.showActivity(activity);
       },
