@@ -23,7 +23,7 @@
     "@veyquo/device-protocol": "workspace:*",
     "@veyquo/local-executor": "workspace:*",
     "@veyquo/ui": "workspace:*",
-    "adspower-browser-cli": "https://github.com/hence-works/adspower.git#commit=d1be64ee43db5aa3436713b50765cd4c84db0582",
+    "adspower-browser-cli": "https://github.com/hence-works/adspower.git#commit=9f842f4d04c82af673910245a16ed7dfbba937e3",
     "electron-updater": "6.8.9",
     "ws": "^8.22.0",
     "zod": "^4.6.7"
