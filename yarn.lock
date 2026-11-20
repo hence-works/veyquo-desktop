@@ -3591,7 +3591,7 @@ __metadata:
     "@veyquo/local-executor": "workspace:*"
     "@veyquo/typescript-config": "workspace:*"
     "@veyquo/ui": "workspace:*"
-    adspower-browser-cli: "https://github.com/hence-works/adspower.git#commit=e5f8a9099b61d9a6177adfe81961ffacb992355f"
+    adspower-browser-cli: "https://github.com/hence-works/adspower.git#commit=e7136eb62daed9573de9e42ae9e06c2e87664f2b"
     electron: "npm:^44.9.3"
     electron-builder: "npm:26.15.3"
     electron-updater: "npm:6.8.9"
@@ -3791,15 +3791,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"adspower-browser-cli@https://github.com/hence-works/adspower.git#commit=e5f8a9099b61d9a6177adfe81961ffacb992355f":
+"adspower-browser-cli@https://github.com/hence-works/adspower.git#commit=e7136eb62daed9573de9e42ae9e06c2e87664f2b":
   version: 0.1.0
-  resolution: "adspower-browser-cli@https://github.com/hence-works/adspower.git#commit=e5f8a9099b61d9a6177adfe81961ffacb992355f"
+  resolution: "adspower-browser-cli@https://github.com/hence-works/adspower.git#commit=e7136eb62daed9573de9e42ae9e06c2e87664f2b"
   dependencies:
     socks: "npm:^2.8.10"
     undici: "npm:^8.12.4"
   bin:
     adspower: dist/cli.js
-  checksum: 10c0/2020e03a4f3573d564bc51ad647077b9682e9cfa83e199f4ad6779f834f922a384ab2979e61e3f1dababebc3b914449faacec7138018832b871265d6a771a52a
+  checksum: 10c0/349abce4b505bedba8d7c4e20459cbfa4a3c6c51bc3d867efe7a732d455d1e6eca43bf5cd80f22194224ccd0283cb9a13302462982ea328379a9372394532ff8
   languageName: node
   linkType: hard
 
