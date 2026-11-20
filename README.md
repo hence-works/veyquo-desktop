@@ -17,12 +17,12 @@ yarn workspace @veyquo/desktop dev
 ```
 
 The choice is remembered in the desktop config. `chrome` remains the default. SunBrowser uses a
-dedicated Veyquo-owned profile and connects over its loopback CDP WebSocket; proxy credentials stay
-in the Electron main process. An explicit or AdsPower-installed kernel is preferred. Otherwise the
-launcher downloads the platform's pinned v157 GitHub release and verifies its SHA-256 digest before
-using the per-user cache. `adspower_flowerbrowser` is a reserved WebDriver BiDi choice and fails
-closed until the BiDi executor has feature parity with the CDP executor. FlowerBrowser remains
-Windows-only.
+dedicated Veyquo-owned profile and connects over its loopback CDP WebSocket. Browser traffic goes
+directly to the job profile's proxy; the CDP session answers proxy authentication without putting
+credentials in browser arguments or profile files. An explicit or AdsPower-installed kernel is
+preferred. Otherwise the launcher downloads the platform's pinned v157 GitHub release and verifies
+its SHA-256 digest before using the per-user cache. `adspower_flowerbrowser` is a reserved WebDriver
+BiDi choice and fails closed until the BiDi executor has feature parity with the CDP executor.
 
 ```bash
 just fetch
