@@ -47,6 +47,6 @@ runs:
         printf '%s\n' "$ADSPOWER_DEPLOY_KEY" | ssh-add - >/dev/null
         known_hosts="$RUNNER_TEMP/veyquo-adspower-known-hosts"
         printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$known_hosts"
-        export GIT_SSH_COMMAND="ssh -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$known_hosts"
+        export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$known_hosts"
         git config --global url.git@github.com:.insteadOf https://github.com/
         just install-ts
