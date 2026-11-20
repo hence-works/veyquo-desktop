@@ -65,6 +65,7 @@ jobs:
     env:
       VEYQUO_BUILD_API_URL: ${{ vars.VEYQUO_BUILD_API_URL }}
       VEYQUO_BUILD_WEB_URL: ${{ vars.VEYQUO_BUILD_WEB_URL }}
+      VEYQUO_UPDATE_URL: ${{ vars.VEYQUO_UPDATE_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -100,6 +101,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           shopt -s nullglob
-          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/*.exe apps/desktop/release/*.AppImage)
+          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/*.exe apps/desktop/release/*.AppImage apps/desktop/release/*.yml apps/desktop/release/*.blockmap)
           if [ "${#files[@]}" -eq 0 ]; then echo "no installers were built" >&2; exit 1; fi
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
