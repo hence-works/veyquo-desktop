@@ -101,6 +101,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           shopt -s nullglob
-          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/*.exe apps/desktop/release/*.AppImage apps/desktop/release/*.yml apps/desktop/release/*.blockmap)
+          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/*.exe apps/desktop/release/*.AppImage apps/desktop/release/latest*.yml apps/desktop/release/*.blockmap)
           if [ "${#files[@]}" -eq 0 ]; then echo "no installers were built" >&2; exit 1; fi
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
