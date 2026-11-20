@@ -17,6 +17,15 @@ export class AppTray {
     if (process.platform === 'darwin') icon.setTemplateImage(true);
     this.tray = new Tray(icon);
     this.onAction = onAction;
+    // On Windows and Linux the Veyquo icon lives in the taskbar's notification area.
+    // A primary click should bring the status window back just like launching the app
+    // again; macOS keeps the conventional menu-bar behaviour and uses the Dock's
+    // `activate` event instead.
+    if (process.platform !== 'darwin') {
+      this.tray.on('click', () => {
+        this.onAction('open', false);
+      });
+    }
   }
 
   update(state: UiState): void {
