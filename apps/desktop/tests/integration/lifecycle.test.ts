@@ -100,7 +100,9 @@ async function overlayPage(): Promise<Page> {
 }
 
 function opened(reply: DeviceReply): string {
-  if (!reply.ok || reply.result?.kind !== 'opened') throw new Error('the session did not open');
+  if (!reply.ok || reply.result?.kind !== 'opened') {
+    throw new Error(`the session did not open: ${JSON.stringify(reply)}`);
+  }
   return reply.result.session_id;
 }
 

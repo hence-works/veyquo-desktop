@@ -1,17 +1,23 @@
 // Launches the built desktop app (`yarn build`) under Electron with Playwright's `_electron`,
 // pointed at a fake gateway, with its state in a temporary folder and a temporary HOME (for
-// the Linux autostart entry). Real Chrome: CHROME_PATH, else /usr/bin/google-chrome.
+// the Linux autostart entry). Real Chrome: CHROME_PATH, then a system Google Chrome installation.
 //
 // `--no-sandbox` is passed on Linux only: hosts that restrict unprivileged user namespaces
 // (Ubuntu 24.04, GitHub runners) cannot start Chromium's OS sandbox without a setuid helper.
 // The renderer keeps Electron's `sandbox: true`, context isolation and no Node integration.
 
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { _electron, type ElectronApplication, type Page } from 'playwright';
 
 export const appDir = join(import.meta.dirname, '..', '..');
-export const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome';
+const systemChrome = [
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/google-chrome',
+  '/opt/google/chrome/chrome',
+].find((candidate) => existsSync(candidate));
+export const chromePath = process.env.CHROME_PATH ?? systemChrome ?? '/usr/bin/google-chrome';
 const electronDist = join(appDir, '..', '..', 'node_modules', 'electron', 'dist');
 export const electronPath =
   process.platform === 'darwin'

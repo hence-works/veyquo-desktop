@@ -16,10 +16,10 @@ fetch *flags:
 install-ts:
     yarn install --immutable
 
-# Playwright's Chromium, which the desktop renderer and the extension integration tests use (one
-# Playwright version for both). Pass `--with-deps` on CI.
+# Google Chrome stable for the managed-profile lifecycle test, plus Playwright Chromium for the
+# renderer and extension integration tests. Pass `--with-deps` on CI.
 browsers *flags:
-    yarn workspace @veyquo/desktop exec playwright install {{ flags }} chromium
+    yarn workspace @veyquo/desktop exec playwright install {{ flags }} chromium chrome
 
 # Format check.
 fmt-check:
