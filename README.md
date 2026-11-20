@@ -55,7 +55,9 @@ Open a pull request with the updated `private-packages.ref` and `yarn.lock`.
 
 ## Releasing the desktop app
 
-Set `version` in `apps/desktop/package.json`, merge, and push a tag `v<version>` from `main`. A tag such as `v<version>-rc.1` makes a pre-release. CI builds macOS (`.dmg`, `.zip`), Windows (`.exe`) and Linux (`.AppImage`) and attaches them to a **draft** release. Installers are currently unsigned.
+Set `version` in `apps/desktop/package.json`, merge, and push a tag `v<version>` from `main`. A tag such as `v<version>-rc.1` makes a pre-release. CI builds macOS (`.dmg`, `.zip`), Windows (`.exe`) and Linux (`.AppImage`) and attaches them, with the updater metadata, to a **draft** release.
+
+After QA, publish the draft. Signed installed builds check the published release feed on startup and every four hours, download a newer version automatically, wait for active browser work or device egress to finish, then restart and install it. Draft and unsigned builds never update themselves. The repository variable `VEYQUO_UPDATE_URL` is the public feed root; signing identities still need to be supplied to the release jobs before automatic updates are enabled for shipped installers.
 
 ## Releasing the Chrome extension
 

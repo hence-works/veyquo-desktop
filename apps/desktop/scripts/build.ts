@@ -24,7 +24,11 @@ import { buildHostExecutable } from './host-executable.ts';
 const root = join(import.meta.dirname, '..');
 const out = join(root, 'build');
 const hostOut = join(root, 'build-host');
-const signed = process.env.VEYQUO_SIGNED_BUILD === '1';
+const signed =
+  process.env.VEYQUO_SIGNED_BUILD === '1' ||
+  [process.env.CSC_LINK, process.env.CSC_NAME, process.env.WIN_CSC_LINK].some(
+    (value) => value !== undefined && value.length > 0,
+  );
 const urls = parseBuildUrls(process.env);
 
 await rm(out, { recursive: true, force: true });

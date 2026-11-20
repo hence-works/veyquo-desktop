@@ -71,7 +71,7 @@ import { checkExecutor, runSmoke } from './smoke.ts';
 import { windowPlacement } from './placement.ts';
 import { AppTray } from './tray.ts';
 import type { TrayAction } from './tray-menu.ts';
-import { checkForUpdates } from './updater.ts';
+import { startAutomaticUpdates, type AutomaticUpdates } from './updater.ts';
 import {
   createAgentOverlayWindow,
   createStatusWindow,
@@ -377,6 +377,16 @@ async function main(): Promise<void> {
   let cleanedUp = false;
   let nativeIpc: NativeIpcServer | null = null;
   let tray: AppTray | null = null;
+  let updates: AutomaticUpdates = { stop: () => undefined };
+  let pendingUpdateInstall: (() => void) | null = null;
+
+  const installUpdateWhenIdle = (state: UiState): void => {
+    if (pendingUpdateInstall !== null && state.activity.kind === 'idle' && !state.egress.active) {
+      // before-quit performs the normal orderly shutdown, then starts the updater instead
+      // of exiting. A busy agent reaches this branch when its next idle state is published.
+      app.quit();
+    }
+  };
 
   const pushState = (state: UiState): void => {
     agentOverlay.activity(state.activity);
@@ -389,6 +399,7 @@ async function main(): Promise<void> {
     );
     tray?.update(state);
     if (window !== null && !window.isDestroyed()) window.webContents.send(ipcChannels.state, state);
+    installUpdateWhenIdle(state);
   };
 
   const autostart = createAutostart({
@@ -579,11 +590,19 @@ async function main(): Promise<void> {
       await controller.stopChrome().catch(() => undefined);
       extensions.close();
       await nativeIpc?.close().catch(() => undefined);
+      updates.stop();
       tray.destroy();
       agentOverlay.close();
-      log.info('app.quit');
       cleanedUp = true;
-      app.exit(0);
+      const install = pendingUpdateInstall;
+      pendingUpdateInstall = null;
+      if (install === null) {
+        log.info('app.quit');
+        app.exit(0);
+      } else {
+        log.info('update.installing');
+        install();
+      }
     })();
   });
 
@@ -604,7 +623,14 @@ async function main(): Promise<void> {
     controller.nativeIpcFailed();
   }
   await controller.start();
-  await checkForUpdates({ packaged, log });
+  updates = await startAutomaticUpdates({
+    packaged,
+    log,
+    onReady: (install) => {
+      pendingUpdateInstall = install;
+      installUpdateWhenIdle(controller.uiState);
+    },
+  });
 }
 
 /** Ids only: a crash records the error's class and redacted message, and never uploads. */
